@@ -1,0 +1,1214 @@
+<title>경쟁력 진단 엔진</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap">
+<style>
+/* Layout: 상단 평가 정보 → 왼쪽 자료 입력(축별) / 오른쪽 결과(고정). 휴대폰에서는 결과가 위로 */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --sunk:#e9edf1; --line:#d3dae1;
+  --fg:#16212c; --muted:#5a6876; --accent:#1f5f8f; --accent-soft:#dbe8f2;
+  --s1:#b23a33; --s2:#cf7a2b; --s3:#b39b2a; --s4:#4f8a5b; --s5:#1f7a6d; --na:#8a96a2;
+  --f-display:"Noto Serif KR","Apple SD Gothic Neo",serif;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f151b; --surface:#16202a; --sunk:#1c2833; --line:#2b3a47;
+  --fg:#e3e9ef; --muted:#93a2b0; --accent:#7cb4dc; --accent-soft:#1d3447;
+  --s1:#e0726a; --s2:#e5a061; --s3:#d6c262; --s4:#7fbd8a; --s5:#5ec2b1; --na:#6c7a87; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f151b; --surface:#16202a; --sunk:#1c2833; --line:#2b3a47;
+  --fg:#e3e9ef; --muted:#93a2b0; --accent:#7cb4dc; --accent-soft:#1d3447;
+  --s1:#e0726a; --s2:#e5a061; --s3:#d6c262; --s4:#7fbd8a; --s5:#5ec2b1; --na:#6c7a87; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.55}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px;display:flex;flex-direction:column;gap:18px}
+h1,h2,h3{margin:0;text-wrap:balance}
+h1{font-family:var(--f-display);font-size:1.6rem;font-weight:700;letter-spacing:-.01em}
+h2{font-family:var(--f-display);font-size:1.12rem;font-weight:600}
+h3{font-size:.95rem;font-weight:600}
+.eyebrow{font-size:.72rem;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;font-weight:600}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:6px 12px}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+button:hover{border-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0;width:100%}
+textarea{resize:vertical;min-height:2.4em}
+header.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;border-bottom:2px solid var(--fg);padding-bottom:12px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.status{font-size:.8rem;color:var(--muted);min-height:1.2em}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px}
+.meta label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)}
+.main{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}.results{order:-1;position:static!important;max-height:none!important}}
+.inputs{display:flex;flex-direction:column;gap:16px}
+.axis-block{display:flex;flex-direction:column;gap:10px}
+.axis-head{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.axis-tag{font-family:var(--f-mono);font-weight:500;background:var(--fg);color:var(--bg);border-radius:4px;padding:0 6px;font-size:.8rem}
+.ind{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.ind-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.ind-q{font-size:.82rem;color:var(--muted)}
+.field{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;border-top:1px dashed var(--line);padding-top:8px}
+.field-label{display:flex;justify-content:space-between;gap:8px;font-size:.85rem;font-weight:500}
+.field-label .unit{font-weight:400;color:var(--muted);font-size:.78rem}
+.hint{font-size:.76rem;color:var(--muted)}
+details.ev summary{font-size:.78rem;color:var(--accent);cursor:pointer;list-style:none}
+details.ev summary::before{content:"+ ";font-family:var(--f-mono)}
+details.ev[open] summary::before{content:"− "}
+.ev-grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:6px;margin-top:6px}
+.ev-grid textarea{grid-column:1 / -1}
+.chip{display:inline-flex;align-items:center;justify-content:center;min-width:2rem;height:1.6rem;border-radius:5px;font-family:var(--f-mono);font-weight:500;font-size:.85rem;color:#fff;padding:0 6px;white-space:nowrap}
+.c1{background:var(--s1)}.c2{background:var(--s2)}.c3{background:var(--s3)}.c4{background:var(--s4)}.c5{background:var(--s5)}.cna{background:var(--na)}
+.results{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;display:flex;flex-direction:column;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px}
+.summary{display:flex;flex-wrap:wrap;gap:16px;font-size:.82rem}
+.summary b{font-family:var(--f-mono);font-size:1.05rem}
+.profile svg{width:100%;height:auto;display:block}
+.profile text{fill:var(--fg);font-family:var(--f-body)}
+.profile .lbl{font-size:12px}
+.profile .ax{font-size:11px;fill:var(--muted);font-weight:600;letter-spacing:.06em}
+.profile .tick{font-size:10px;fill:var(--muted);font-family:var(--f-mono)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.76rem;color:var(--muted)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.8rem}
+th,td{text-align:left;padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.74rem;letter-spacing:.04em}
+td select{padding:3px 4px;font-size:.78rem;width:auto}
+td input{padding:3px 6px;font-size:.78rem}
+.explain{color:var(--muted);font-size:.75rem}
+.tasks{display:flex;flex-direction:column;gap:6px}
+.task{display:flex;gap:10px;align-items:flex-start;border-left:3px solid var(--s1);padding:6px 10px;background:var(--sunk);border-radius:0 6px 6px 0;font-size:.82rem}
+.ext{font-size:.8rem;display:flex;flex-direction:column;gap:6px}
+.ctx{display:flex;flex-direction:column;gap:2px;border-left:2px solid var(--line);padding-left:8px;white-space:pre-wrap}
+.notice{background:var(--accent-soft);border-radius:6px;padding:8px 10px;font-size:.8rem}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--fg);max-width:min(560px,92vw);padding:16px}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+.list{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.list button{text-align:left;display:flex;justify-content:space-between;gap:10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow" id="rubricMeta">평가 틀</div>
+      <h1 id="rubricName">경쟁력 진단 엔진</h1>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+      <div class="toolbar">
+        <button id="btnSave" class="primary" type="button">평가 저장</button>
+        <button id="btnOpen" type="button">저장된 평가</button>
+        <button id="btnNew" type="button">새 평가</button>
+        <button id="btnExport" type="button">JSON 내보내기</button>
+        <label class="hint" style="display:inline-flex;align-items:center;gap:6px"><button id="btnImport" type="button">불러오기</button></label>
+        <input id="fileImport" type="file" accept=".json,application/json" hidden>
+      </div>
+      <div class="status" id="status" role="status"></div>
+    </div>
+  </header>
+
+  <section class="meta" aria-label="평가 정보">
+    <label>평가 대상<input id="m_target" type="text" placeholder="예: ㈜자비스"></label>
+    <label>대상 품목<input id="m_item" type="text" placeholder="예: 삼차원 엑스선 단층촬영 자동검사 시스템"></label>
+    <label>자료 기준일<input id="m_asof" type="date"></label>
+    <label>목표 시점<input id="m_targetDate" type="text" placeholder="예: 2028년 말"></label>
+    <label>평가자<input id="m_evaluator" type="text"></label>
+  </section>
+
+  <div class="main">
+    <section class="inputs" id="inputs" aria-label="자료 입력"></section>
+    <aside class="results" id="results" aria-label="평가 결과">
+      <div>
+        <div class="eyebrow">평가 결과</div>
+        <h2 id="resTitle">축별 점수</h2>
+      </div>
+      <div class="summary" id="summary"></div>
+      <div class="profile" id="profile"></div>
+      <div class="legend">
+        <span><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="var(--accent)"></circle></svg>확정 점수</span>
+        <span><svg width="14" height="14"><circle cx="7" cy="7" r="5" fill="none" stroke="var(--fg)" stroke-width="1.6" stroke-dasharray="2 2"></circle></svg>목표 점수</span>
+        <span><svg width="14" height="14"><rect x="2" y="5" width="10" height="4" fill="var(--na)"></rect></svg>확인 불가</span>
+      </div>
+      <div>
+        <h3>과제 후보</h3>
+        <p class="hint" style="margin:2px 0 8px">중요도 높음 · 확정 점수 2점 이하 · 회사가 통제 가능한 지표</p>
+        <div class="tasks" id="tasks"></div>
+      </div>
+      <div>
+        <h3>지표별 점수와 근거</h3>
+        <p class="hint" style="margin:2px 0 8px">엔진 점수는 규칙으로 계산한 초안입니다. 평가자가 확정 점수를 바꾸면 사유를 적어 주세요.</p>
+        <div class="tbl-wrap"><table id="scoreTable"></table></div>
+      </div>
+      <div class="ext" id="external"></div>
+    </aside>
+  </div>
+</div>
+
+<dialog id="dlgOpen">
+  <h2>저장된 평가</h2>
+  <div class="list" id="evalList"></div>
+  <div style="display:flex;justify-content:flex-end"><button id="dlgClose" type="button">닫기</button></div>
+</dialog>
+
+<script type="application/json" id="defaultRubric">{
+  "meta": {
+    "id": "item-competitiveness",
+    "name": "품목 경쟁력 진단 평가 틀",
+    "version": "0.2",
+    "purpose": "산업융합 선도기업·혁신품목의 품목 단위 기술·시장·제도·데이터 여건을 절대평가하여 경쟁력 강화 과제를 도출하고, 회사 여건으로 방안의 실행 가능성을 판단",
+    "target_type": "품목 (산업용 검사·제조 장비)",
+    "first_application": "㈜자비스 삼차원 엑스선 단층촬영 자동검사 시스템 (2023 산업융합 선도기업)",
+    "evaluation_mode": "absolute",
+    "note": "점수는 품목 단위 지표로만 낸다. 회사 단위 정보는 '기업 여건'에 근거와 함께 기록하고 점수에 반영하지 않는다. 경쟁사는 시장 여건 서술에만 쓴다."
+  },
+  "scale": {
+    "min": 1,
+    "max": 5,
+    "meaning": {
+      "1": "다음 성장 단계 요구 수준에 크게 못 미침",
+      "3": "기본 요건은 갖추었으나 확산 단계 요구 수준에는 미달",
+      "5": "확산 단계 요구 수준을 충족"
+    },
+    "missing": "확인 불가 (점수 없음, 자료 보완 대상으로 표시)"
+  },
+  "axes": [
+    {
+      "id": "T",
+      "name": "기술",
+      "description": "품목 기술의 성숙도, 성능 입증, 연구개발, 지식재산"
+    },
+    {
+      "id": "M",
+      "name": "시장",
+      "description": "품목의 고객 기반, 적용 범위, 매출 추이, 해외 레퍼런스"
+    },
+    {
+      "id": "I",
+      "name": "제도",
+      "description": "표준 참여, 시장 진입 인증"
+    },
+    {
+      "id": "D",
+      "name": "데이터·생태계",
+      "description": "학습 데이터 확보 구조, 수요기업 협력, 차세대 대응"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "main_product_trl",
+      "label": "품목 기술성숙도(TRL)",
+      "type": "integer",
+      "unit": "단계",
+      "source_hint": "납품·양산 적용 실적, 수주 공시, 기사",
+      "extraction_prompt": "주력 품목이 산업핵심기술개발사업 TRL 9단계 중 어디에 해당하는지 판단 근거 문장과 함께 제시. 고객 양산 라인 적용 실적이 있으면 9."
+    },
+    {
+      "id": "judgment_disclosure_level",
+      "label": "판정 성능 공개 수준",
+      "type": "choice",
+      "source_hint": "회사 IR 자료, 제품 소개, 기사, 논문",
+      "extraction_prompt": "검사 장비의 판정 성능(과검율·미검율·검출률 등) 수치가 공개되었는지, 결함 유형별로 구분되는지 확인.",
+      "options": [
+        {
+          "score": 1,
+          "label": "판정 성능 관련 언급 없음"
+        },
+        {
+          "score": 2,
+          "label": "정성적 주장만 있음 (빠르고 정확함 등)"
+        },
+        {
+          "score": 3,
+          "label": "단일 수치 공개 (검출률, 정확도 등 한 가지)"
+        },
+        {
+          "score": 4,
+          "label": "과검율·미검율 수치 공개 (결함 유형 구분 없음 또는 상용 기준 1% 미충족)"
+        },
+        {
+          "score": 5,
+          "label": "결함 유형별 과검율·미검율 공개, 각 1% 이하 충족"
+        }
+      ]
+    },
+    {
+      "id": "item_rnd_level",
+      "label": "품목 관련 연구개발 수준",
+      "type": "choice",
+      "source_hint": "사업보고서 정부과제 목록, NTIS, 과제 선정 기사",
+      "extraction_prompt": "평가 품목(및 그 차세대 형태)과 직접 관련된 연구개발 과제의 수와 회사의 역할.",
+      "options": [
+        {
+          "score": 1,
+          "label": "품목 관련 연구개발 확인 안 됨"
+        },
+        {
+          "score": 2,
+          "label": "자체 개발만 확인"
+        },
+        {
+          "score": 3,
+          "label": "품목 관련 정부과제 1건 수행"
+        },
+        {
+          "score": 4,
+          "label": "품목 관련 정부과제 2건 이상 또는 차세대 품목 과제 참여"
+        },
+        {
+          "score": 5,
+          "label": "품목 관련 정부과제 주관 + 수요기업 양산 라인 실증 연계"
+        }
+      ]
+    },
+    {
+      "id": "ip_level",
+      "label": "품목 핵심 기술 지식재산 수준",
+      "type": "choice",
+      "source_hint": "KIPRIS, 사업보고서 지식재산권 현황",
+      "extraction_prompt": "평가 품목(배터리 CT·AI 판정 등)과 관련된 특허의 출원·등록 상태와 국가.",
+      "options": [
+        {
+          "score": 1,
+          "label": "관련 특허 없음"
+        },
+        {
+          "score": 2,
+          "label": "국내 출원만 있음"
+        },
+        {
+          "score": 3,
+          "label": "국내 등록 있음"
+        },
+        {
+          "score": 4,
+          "label": "해외(PCT 포함) 출원 있음"
+        },
+        {
+          "score": 5,
+          "label": "해외 등록 있음"
+        }
+      ]
+    },
+    {
+      "id": "item_customer_level",
+      "label": "품목 고객 기반",
+      "type": "choice",
+      "source_hint": "사업보고서 판매전략, 수주 공시, 기사",
+      "extraction_prompt": "평가 품목을 양산 라인에 적용한 고객의 범위.",
+      "options": [
+        {
+          "score": 1,
+          "label": "양산 적용 고객 없음"
+        },
+        {
+          "score": 2,
+          "label": "국내 고객 1곳"
+        },
+        {
+          "score": 3,
+          "label": "국내 고객 복수"
+        },
+        {
+          "score": 4,
+          "label": "국내 주요 고객군 전체(배터리 3사 등)"
+        },
+        {
+          "score": 5,
+          "label": "국내 주요 고객군 전체 + 해외 복수 고객 양산 적용"
+        }
+      ]
+    },
+    {
+      "id": "item_scope_level",
+      "label": "품목 적용 범위",
+      "type": "choice",
+      "source_hint": "사업보고서 시장 현황, 제품 소개",
+      "extraction_prompt": "품목이 대응하는 셀 형태(원통·각형·파우치)와 공정 방식(오프라인·인라인), 차세대 형태 적용 여부.",
+      "options": [
+        {
+          "score": 1,
+          "label": "셀 형태 1종 대응"
+        },
+        {
+          "score": 2,
+          "label": "셀 형태 2종 대응"
+        },
+        {
+          "score": 3,
+          "label": "3종 모두 대응 (오프라인 위주)"
+        },
+        {
+          "score": 4,
+          "label": "3종 모두 인라인 수주 실적"
+        },
+        {
+          "score": 5,
+          "label": "3종 인라인 + 차세대 형태(46파이·전고체 등) 양산 적용"
+        }
+      ]
+    },
+    {
+      "id": "item_rev_latest",
+      "label": "품목 매출 (최근 사업연도)",
+      "type": "number",
+      "unit": "억 원",
+      "source_hint": "사업보고서 '주요 제품 등의 현황'",
+      "extraction_prompt": "평가 품목의 최근 사업연도 매출."
+    },
+    {
+      "id": "item_rev_prev",
+      "label": "품목 매출 (전년도)",
+      "type": "number",
+      "unit": "억 원",
+      "source_hint": "사업보고서 '주요 제품 등의 현황'",
+      "extraction_prompt": "평가 품목의 전년도 매출."
+    },
+    {
+      "id": "production_reference_regions",
+      "label": "해외 양산 레퍼런스 지역 수",
+      "type": "integer",
+      "unit": "지역",
+      "source_hint": "수주 공시, 기사 (북미·유럽·중국·일본·동남아 등)",
+      "extraction_prompt": "고객 양산 라인에 장비가 적용된 해외 지역 수. 국내 제외."
+    },
+    {
+      "id": "standard_level",
+      "label": "표준 참여 수준",
+      "type": "choice",
+      "source_hint": "국가표준인증 통합정보시스템, 표준 관련 기사, 회사 발표",
+      "extraction_prompt": "주력 품목 관련 검사 표준 활동 참여 여부와 단계.",
+      "options": [
+        {
+          "score": 1,
+          "label": "참여 확인 안 됨"
+        },
+        {
+          "score": 2,
+          "label": "표준화 협의체·포럼 참여"
+        },
+        {
+          "score": 3,
+          "label": "국가표준(KS) 제안"
+        },
+        {
+          "score": 4,
+          "label": "국가표준 제정 기여 또는 국제표준 활동 참여"
+        },
+        {
+          "score": 5,
+          "label": "국제표준(IEC·ISO) 제안·주도"
+        }
+      ]
+    },
+    {
+      "id": "market_cert_level",
+      "label": "품목 시장 진입 인증",
+      "type": "choice",
+      "source_hint": "사업보고서 '주요 제품 등 관련 각종 산업표준', 회사 인증 현황",
+      "extraction_prompt": "품목이 각 해외 시장에 판매되기 위해 갖춘 인증(CE, UL·NRTL, FDA, 중국·일본 인증 등).",
+      "options": [
+        {
+          "score": 1,
+          "label": "국내 법정 허가만"
+        },
+        {
+          "score": 2,
+          "label": "유럽 또는 북미 중 한 곳 인증"
+        },
+        {
+          "score": 3,
+          "label": "유럽·북미 인증 모두"
+        },
+        {
+          "score": 4,
+          "label": "유럽·북미 + 아시아 주요국 인증"
+        },
+        {
+          "score": 5,
+          "label": "주요 시장 인증 + 검사 성능의 제3자 인증"
+        }
+      ]
+    },
+    {
+      "id": "data_structure_level",
+      "label": "학습 데이터 확보 구조",
+      "type": "choice",
+      "source_hint": "회사 발표, 기사, 국책과제 내용",
+      "extraction_prompt": "판정 AI 학습 데이터를 어디서 어떻게 확보하는지.",
+      "options": [
+        {
+          "score": 1,
+          "label": "자체 시료 데이터만"
+        },
+        {
+          "score": 2,
+          "label": "산학 협력 등 외부 데이터 확보"
+        },
+        {
+          "score": 3,
+          "label": "고객 데이터 일부 이용 계약 또는 공동 데이터 확보"
+        },
+        {
+          "score": 4,
+          "label": "고객사 내부 재학습 체계 운영"
+        },
+        {
+          "score": 5,
+          "label": "복수 고객 데이터 활용 체계 + 합성 데이터 생산 체계"
+        }
+      ]
+    },
+    {
+      "id": "codev_level",
+      "label": "수요기업 공동개발",
+      "type": "choice",
+      "source_hint": "국책과제 컨소시엄 구성, 공동개발 기사",
+      "extraction_prompt": "수요기업(고객사)과 파일럿 라인 단계에서 공동개발하는지와 그 수.",
+      "options": [
+        {
+          "score": 1,
+          "label": "없음"
+        },
+        {
+          "score": 2,
+          "label": "협의·업무협약 단계"
+        },
+        {
+          "score": 3,
+          "label": "수요기업 1곳과 파일럿 공동개발"
+        },
+        {
+          "score": 4,
+          "label": "수요기업 2곳과 공동개발"
+        },
+        {
+          "score": 5,
+          "label": "수요기업 3곳 이상과 공동개발"
+        }
+      ]
+    },
+    {
+      "id": "nextgen_trl",
+      "label": "차세대 품목 기술성숙도(TRL)",
+      "type": "integer",
+      "unit": "단계 (계획 없음=0)",
+      "source_hint": "국책과제, 개발 발표, 기사",
+      "extraction_prompt": "차세대 배터리(전고체 등) 대응 품목의 TRL. 계획이 없으면 0."
+    }
+  ],
+  "derived": [
+    {
+      "id": "item_rev_ratio",
+      "label": "전년 대비 품목 매출",
+      "op": "percent",
+      "args": [
+        "item_rev_latest",
+        "item_rev_prev"
+      ],
+      "unit": "%"
+    }
+  ],
+  "indicators": [
+    {
+      "id": "T1",
+      "name": "품목 기술성숙도",
+      "axis": "T",
+      "question": "품목이 고객 양산 라인에 적용되는 단계에 도달했는가",
+      "anchor_type": "external",
+      "anchor_ref": "trl_industry",
+      "levels": {
+        "1": "TRL 1~3",
+        "2": "TRL 4~5",
+        "3": "TRL 6~7",
+        "4": "TRL 8 (인증)",
+        "5": "TRL 9 (양산 적용)"
+      },
+      "rule": {
+        "type": "range",
+        "field": "main_product_trl",
+        "bands": [
+          {
+            "min": 9,
+            "score": 5
+          },
+          {
+            "min": 8,
+            "max": 9,
+            "score": 4
+          },
+          {
+            "min": 6,
+            "max": 8,
+            "score": 3
+          },
+          {
+            "min": 4,
+            "max": 6,
+            "score": 2
+          },
+          {
+            "min": 1,
+            "max": 4,
+            "score": 1
+          }
+        ]
+      },
+      "controllable": "yes",
+      "importance": "medium"
+    },
+    {
+      "id": "T2",
+      "name": "판정 성능 입증",
+      "axis": "T",
+      "question": "검사 판정 성능을 고객이 비교할 수 있는 수치로 입증하는가",
+      "anchor_type": "external",
+      "anchor_ref": "commercial_inspection_criteria",
+      "levels": {
+        "1": "언급 없음",
+        "2": "정성적 주장",
+        "3": "단일 수치",
+        "4": "과검·미검 수치 공개",
+        "5": "결함 유형별 과검·미검 1% 이하 공개"
+      },
+      "rule": {
+        "type": "ordinal",
+        "field": "judgment_disclosure_level"
+      },
+      "controllable": "yes",
+      "importance": "high"
+    },
+    {
+      "id": "T3",
+      "name": "품목 연구개발",
+      "axis": "T",
+      "question": "품목과 차세대 형태에 대한 연구개발이 이어지고 있는가",
+      "anchor_type": "factual",
+      "anchor_ref": null,
+      "levels": {
+        "1": "확인 안 됨",
+        "2": "자체 개발만",
+        "3": "정부과제 1건",
+        "4": "정부과제 2건 이상 또는 차세대 과제 참여",
+        "5": "주관 + 수요기업 실증 연계"
+      },
+      "rule": {
+        "type": "ordinal",
+        "field": "item_rnd_level"
+      },
+      "controllable": "yes",
+      "importance": "medium"
+    },
+    {
+      "id": "T4",
+      "name": "지식재산",
+      "axis": "T",
+      "question": "품목의 핵심 기술이 국내외 특허로 보호되는가",
+      "anchor_type": "factual",
+      "anchor_ref": null,
+      "levels": {
+        "1": "특허 없음",
+        "2": "국내 출원",
+        "3": "국내 등록",
+        "4": "해외 출원",
+        "5": "해외 등록"
+      },
+      "rule": {
+        "type": "ordinal",
+        "field": "ip_level"
+      },
+      "controllable": "yes",
+      "importance": "medium"
+    },
+    {
+      "id": "M1",
+      "name": "품목 고객 기반",
+      "axis": "M",
+      "question": "품목이 주요 고객의 양산 라인에 폭넓게 들어가 있는가",
+      "anchor_type": "factual",
+      "anchor_ref": null,
+      "levels": {
+        "1": "양산 고객 없음",
+        "2": "국내 1곳",
+        "3": "국내 복수",
+        "4": "국내 주요 고객군 전체",
+        "5": "국내 전체 + 해외 복수"
+      },
+      "rule": {
+        "type": "ordinal",
+        "field": "item_customer_level"
+      },
+      "controllable": "partial",
+      "importance": "high"
+    },
+    {
+      "id": "M2",
+      "name": "품목 적용 범위",
+      "axis": "M",
+      "question": "품목이 셀 형태와 공정 방식, 차세대 형태까지 대응하는가",
+      "anchor_type": "factual",
+      "anchor_ref": null,
+      "levels": {
+        "1": "셀 형태 1종",
+        "2": "2종",
+        "3": "3종 오프라인",
+        "4": "3종 인라인 실적",
+        "5": "3종 인라인 + 차세대 형태 양산 적용"
+      },
+      "rule": {
+        "type": "ordinal",
+        "field": "item_scope_level"
+      },
+      "controllable": "yes",
+      "importance": "medium"
+    },
+    {
+      "id": "M3",
+      "name": "품목 매출 추이",
+      "axis": "M",
+      "question": "품목 매출이 유지되거나 늘고 있는가",
+      "anchor_type": "factual",
+      "anchor_ref": null,
+      "levels": {
+        "1": "전년 대비 50% 미만",
+        "2": "50~90%",
+        "3": "90~110%",
+        "4": "110~130%",
+        "5": "130% 이상"
+      },
+      "rule": {
+        "type": "range",
+        "field": "item_rev_ratio",
+        "bands": [
+          {
+            "min": 130,
+            "score": 5
+          },
+          {
+            "min": 110,
+            "max": 130,
+            "score": 4
+          },
+          {
+            "min": 90,
+            "max": 110,
+            "score": 3
+          },
+          {
+            "min": 50,
+            "max": 90,
+            "score": 2
+          },
+          {
+            "max": 50,
+            "score": 1
+          }
+        ]
+      },
+      "controllable": "partial",
+      "importance": "high"
+    },
+    {
+      "id": "M4",
+      "name": "품목 해외 양산 레퍼런스",
+      "axis": "M",
+      "question": "품목이 해외 고객의 양산 라인에 적용된 지역이 충분한가",
+      "anchor_type": "factual",
+      "anchor_ref": null,
+      "levels": {
+        "1": "없음",
+        "2": "1개 지역",
+        "3": "2개 지역",
+        "4": "3개 지역",
+        "5": "4개 지역 이상"
+      },
+      "rule": {
+        "type": "range",
+        "field": "production_reference_regions",
+        "bands": [
+          {
+            "min": 4,
+            "score": 5
+          },
+          {
+            "min": 3,
+            "max": 4,
+            "score": 4
+          },
+          {
+            "min": 2,
+            "max": 3,
+            "score": 3
+          },
+          {
+            "min": 1,
+            "max": 2,
+            "score": 2
+          },
+          {
+            "max": 1,
+            "score": 1
+          }
+        ]
+      },
+      "controllable": "yes",
+      "importance": "medium"
+    },
+    {
+      "id": "I1",
+      "name": "표준 참여",
+      "axis": "I",
+      "question": "품목의 검사 성능·방법 표준 형성에 참여하는가",
+      "anchor_type": "factual",
+      "anchor_ref": null,
+      "levels": {
+        "1": "참여 확인 안 됨",
+        "2": "협의체·포럼 참여",
+        "3": "KS 제안",
+        "4": "KS 제정 기여 또는 국제표준 활동",
+        "5": "국제표준 제안·주도"
+      },
+      "rule": {
+        "type": "ordinal",
+        "field": "standard_level"
+      },
+      "controllable": "yes",
+      "importance": "high"
+    },
+    {
+      "id": "I2",
+      "name": "품목 시장 진입 인증",
+      "axis": "I",
+      "question": "품목이 주요 해외 시장에 판매될 인증을 갖추었는가",
+      "anchor_type": "factual",
+      "anchor_ref": null,
+      "levels": {
+        "1": "국내 허가만",
+        "2": "유럽 또는 북미",
+        "3": "유럽·북미 모두",
+        "4": "유럽·북미 + 아시아 주요국",
+        "5": "주요 시장 + 검사 성능 제3자 인증"
+      },
+      "rule": {
+        "type": "ordinal",
+        "field": "market_cert_level"
+      },
+      "controllable": "yes",
+      "importance": "medium"
+    },
+    {
+      "id": "D1",
+      "name": "학습 데이터 확보 구조",
+      "axis": "D",
+      "question": "판정 AI를 개선할 데이터를 지속적으로 확보할 구조가 있는가",
+      "anchor_type": "factual",
+      "anchor_ref": null,
+      "levels": {
+        "1": "자체 시료만",
+        "2": "외부 데이터 확보",
+        "3": "고객 데이터 일부 이용",
+        "4": "고객사 내부 재학습 체계",
+        "5": "복수 고객 데이터 + 합성 데이터 체계"
+      },
+      "rule": {
+        "type": "ordinal",
+        "field": "data_structure_level"
+      },
+      "controllable": "yes",
+      "importance": "high"
+    },
+    {
+      "id": "D2",
+      "name": "수요기업 공동개발",
+      "axis": "D",
+      "question": "고객사와 파일럿 단계부터 함께 개발하는가",
+      "anchor_type": "factual",
+      "anchor_ref": null,
+      "levels": {
+        "1": "없음",
+        "2": "협의·협약",
+        "3": "1곳 공동개발",
+        "4": "2곳",
+        "5": "3곳 이상"
+      },
+      "rule": {
+        "type": "ordinal",
+        "field": "codev_level"
+      },
+      "controllable": "partial",
+      "importance": "high"
+    },
+    {
+      "id": "D3",
+      "name": "차세대 품목 대응",
+      "axis": "D",
+      "question": "차세대 배터리 등 다음 시장에 맞는 품목 형태를 준비하고 있는가",
+      "anchor_type": "external",
+      "anchor_ref": "trl_industry",
+      "levels": {
+        "1": "계획 없음",
+        "2": "TRL 1~3",
+        "3": "TRL 4~5",
+        "4": "TRL 6~7",
+        "5": "TRL 8 이상"
+      },
+      "rule": {
+        "type": "range",
+        "field": "nextgen_trl",
+        "bands": [
+          {
+            "min": 8,
+            "score": 5
+          },
+          {
+            "min": 6,
+            "max": 8,
+            "score": 4
+          },
+          {
+            "min": 4,
+            "max": 6,
+            "score": 3
+          },
+          {
+            "min": 1,
+            "max": 4,
+            "score": 2
+          },
+          {
+            "max": 1,
+            "score": 1
+          }
+        ]
+      },
+      "controllable": "yes",
+      "importance": "high"
+    }
+  ],
+  "context": [
+    {
+      "id": "c_financials",
+      "label": "회사 매출·영업손익 추이",
+      "source_hint": "사업보고서·반기보고서 연결 포괄손익계산서",
+      "type": "text"
+    },
+    {
+      "id": "c_rnd",
+      "label": "회사 연구개발비와 인력",
+      "source_hint": "사업보고서 연구개발비용, 연구개발 조직",
+      "type": "text"
+    },
+    {
+      "id": "c_mix",
+      "label": "회사 사업 구성",
+      "source_hint": "사업보고서 주요 제품 등의 현황",
+      "type": "text"
+    },
+    {
+      "id": "c_backlog",
+      "label": "수주잔고",
+      "source_hint": "사업보고서 수주상황",
+      "type": "text"
+    },
+    {
+      "id": "c_customers",
+      "label": "주요 고객 의존도",
+      "source_hint": "연결재무제표 주석 영업부문 정보",
+      "type": "text"
+    },
+    {
+      "id": "c_liquidity",
+      "label": "현금성 자산",
+      "source_hint": "연결재무제표 주석 현금및현금성자산",
+      "type": "text"
+    },
+    {
+      "id": "c_capital",
+      "label": "자본 관련 사건",
+      "source_hint": "거래소 공시 (주식병합, 유상증자 등)",
+      "type": "text"
+    },
+    {
+      "id": "c_designations",
+      "label": "기업 지정·인증",
+      "source_hint": "사업보고서, 회사 홈페이지",
+      "type": "text"
+    },
+    {
+      "id": "c_capacity",
+      "label": "실행 여력 종합 판단 (평가자 서술)",
+      "source_hint": "위 항목을 근거로 평가자가 작성",
+      "type": "text"
+    }
+  ],
+  "external_factors": [
+    {
+      "id": "X1",
+      "name": "전방 산업 업황",
+      "description": "2차전지 투자 둔화 등 고객 산업의 설비 투자 흐름"
+    },
+    {
+      "id": "X2",
+      "name": "고객사 양산 일정",
+      "description": "전고체·유리기판 등 고객사 양산 시점"
+    },
+    {
+      "id": "X3",
+      "name": "환율과 해외 정책",
+      "description": "환율, 북미 보조금 등 해외 공장 투자에 영향을 주는 정책"
+    }
+  ],
+  "references": [
+    {
+      "id": "trl_industry",
+      "title": "산업핵심기술개발사업 공고 별첨2 기술성숙도(TRL)",
+      "note": "1 기초실험 ~ 9 사업화(양산)"
+    },
+    {
+      "id": "commercial_inspection_criteria",
+      "title": "정대진·허헌(2024), 배터리 불량 검출을 위한 딥러닝 기반 X-ray 검사",
+      "note": "상용 장비 기준 과검율·미검율 각 1% 이하"
+    }
+  ]
+}</script>
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s);
+const el=(tag,attrs={},...kids)=>{const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==="class")e.className=v;else if(k==="text")e.textContent=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!==undefined&&v!==null&&v!==false)e.setAttribute(k,v===true?"":v)}for(const c of kids.flat()){if(c==null)continue;e.append(c.nodeType?c:document.createTextNode(String(c)))}return e};
+const SVGNS="http://www.w3.org/2000/svg";
+const sv=(tag,attrs={},text)=>{const e=document.createElementNS(SVGNS,tag);for(const[k,v]of Object.entries(attrs))e.setAttribute(k,v);if(text!=null)e.textContent=text;return e};
+
+/* ---------- 상태 ---------- */
+let rubric=JSON.parse($("#defaultRubric").textContent);
+let state=blankState();
+let db=null, downloads=null;
+
+function blankState(){return{id:null,meta:{target:"",item:"",asof:"",targetDate:"",evaluator:""},values:{},overrides:{},targets:{}}}
+function store(){try{localStorage.setItem("draft",JSON.stringify({rubric,state}))}catch(e){}}
+function restore(){try{const d=JSON.parse(localStorage.getItem("draft")||"null");if(d&&d.rubric&&d.state){rubric=d.rubric;state=Object.assign(blankState(),d.state)}}catch(e){}}
+
+/* ---------- 채점 엔진 (순수 함수) ---------- */
+const isNum=v=>typeof v==="number"&&isFinite(v);
+function inputValue(id,values){const v=values[id];if(!v)return null;const x=v.value;if(x===""||x==null)return null;const n=Number(x);return isNum(n)?n:null}
+function computeAll(rb,values){
+  const vals={};
+  for(const inp of rb.inputs)vals[inp.id]=inputValue(inp.id,values);
+  for(const d of rb.derived||[]){const[a,b]=d.args.map(k=>vals[k]);let r=null;
+    if(isNum(a)&&isNum(b)){if(d.op==="percent"&&b!==0)r=a/b*100;else if(d.op==="divide"&&b!==0)r=a/b;else if(d.op==="subtract")r=a-b}
+    vals[d.id]=r}
+  const out={};
+  for(const ind of rb.indicators)out[ind.id]=scoreIndicator(ind,vals,rb);
+  return{vals,out};
+}
+function fmt(n){if(!isNum(n))return"–";return Math.abs(n)>=100?n.toFixed(0):(Math.round(n*10)/10).toString()}
+function cmp(a,op,b){switch(op){case">=":return a>=b;case">":return a>b;case"<=":return a<=b;case"<":return a<b;case"==":return a===b}return false}
+function evalCond(c,vals){const v=vals[c.field];if(!isNum(v))return null;return cmp(v,c.op,c.value)}
+function evalWhen(w,vals){
+  if(w.all){let unknown=false;for(const c of w.all){const r=evalCond(c,vals);if(r===false)return false;if(r===null)unknown=true}return unknown?null:true}
+  if(w.any){let unknown=false;for(const c of w.any){const r=evalCond(c,vals);if(r===true)return true;if(r===null)unknown=true}return unknown?null:false}
+  return null}
+function labelOf(rb,id){const i=rb.inputs.find(x=>x.id===id);if(i)return i.label;const d=(rb.derived||[]).find(x=>x.id===id);return d?d.label:id}
+function unitOf(rb,id){const i=rb.inputs.find(x=>x.id===id)||(rb.derived||[]).find(x=>x.id===id);return i&&i.unit?i.unit:""}
+function scoreIndicator(ind,vals,rb){
+  const r=ind.rule;
+  if(r.type==="range"){const v=vals[r.field];
+    if(!isNum(v))return{score:null,explain:`${labelOf(rb,r.field)} 값이 없어 확인 불가`};
+    for(const b of r.bands){const okMin=b.min==null||v>=b.min,okMax=b.max==null||v<b.max;
+      if(okMin&&okMax){const rng=[b.min!=null?`${b.min} 이상`:"",b.max!=null?`${b.max} 미만`:""].filter(Boolean).join(" ");
+        return{score:b.score,explain:`${labelOf(rb,r.field)} ${fmt(v)}${unitOf(rb,r.field)} → ${rng} 구간`}}}
+    return{score:null,explain:"정의된 구간에 해당하지 않음"}}
+  if(r.type==="ordinal"){const v=vals[r.field];const inp=rb.inputs.find(x=>x.id===r.field);
+    if(!isNum(v))return{score:null,explain:`${labelOf(rb,r.field)} 미선택으로 확인 불가`};
+    const opt=(inp.options||[]).find(o=>o.score===v);return{score:v,explain:`선택: ${opt?opt.label:v}`}}
+  if(r.type==="conditions"){
+    for(let i=0;i<r.cases.length;i++){const c=r.cases[i];const res=evalWhen(c.when,vals);
+      if(res===null){const fs=(c.when.all||c.when.any).filter(x=>!isNum(vals[x.field])).map(x=>labelOf(rb,x.field));
+        return{score:null,explain:`${[...new Set(fs)].join(", ")} 값이 없어 판정 불가`}}
+      if(res===true){const parts=(c.when.all||c.when.any).map(x=>`${labelOf(rb,x.field)} ${fmt(vals[x.field])} ${x.op} ${x.value}`);
+        return{score:c.score,explain:`조건 충족: ${parts.join(c.when.all?" 그리고 ":" 또는 ")}`}}}
+    if(r.default!=null)return{score:r.default,explain:"앞의 조건에 해당하지 않아 기본 단계 적용"};
+    return{score:null,explain:"조건에 해당하지 않음"}}
+  return{score:null,explain:"알 수 없는 규칙"}}
+function finalScore(id,auto){const o=state.overrides[id];return o&&o.score?Number(o.score):auto}
+
+/* ---------- 입력 화면 ---------- */
+function renderInputs(){
+  const host=$("#inputs");host.replaceChildren();
+  const shown=new Set();
+  const derivedArgs=id=>{const d=(rubric.derived||[]).find(x=>x.id===id);return d?d.args.flatMap(derivedArgs):[id]};
+  const fieldsOf=ind=>{const r=ind.rule;let f=r.type==="conditions"?r.cases.flatMap(c=>(c.when.all||c.when.any).map(x=>x.field)):[r.field];return[...new Set(f.flatMap(derivedArgs))]};
+  for(const ax of rubric.axes){
+    const block=el("div",{class:"axis-block"},el("div",{class:"axis-head"},el("span",{class:"axis-tag",text:ax.id}),el("h2",{text:ax.name}),el("span",{class:"hint",text:ax.description})));
+    for(const ind of rubric.indicators.filter(i=>i.axis===ax.id)){
+      const card=el("div",{class:"ind",id:"ind_"+ind.id},
+        el("div",{class:"ind-head"},el("div",{},el("h3",{},el("span",{class:"mono muted",text:ind.id+" "}),ind.name),el("div",{class:"ind-q",text:ind.question})),el("span",{class:"chip cna",id:"chip_"+ind.id,text:"–"})));
+      for(const fid of fieldsOf(ind)){
+        if(shown.has(fid)){card.append(el("div",{class:"hint",text:`${labelOf(rubric,fid)}: 위에서 입력한 값을 사용합니다.`}));continue}
+        shown.add(fid);const inp=rubric.inputs.find(x=>x.id===fid);if(!inp)continue;card.append(renderField(inp))}
+      block.append(card)}
+    host.append(block)}
+  if(rubric.context&&rubric.context.length){
+    const block=el("div",{class:"axis-block"},el("div",{class:"axis-head"},el("span",{class:"axis-tag",text:"C"}),el("h2",{text:"기업 여건"}),el("span",{class:"hint",text:"점수에 반영하지 않고, 방안의 실행 가능성을 판단하는 근거로 기록합니다."})));
+    const card=el("div",{class:"ind"});
+    for(const c of rubric.context)card.append(renderField(c));
+    block.append(card);host.append(block)}
+}
+function renderField(inp){
+  const cur=state.values[inp.id]||{};
+  const set=(k,v)=>{state.values[inp.id]=Object.assign({},state.values[inp.id],{[k]:v});recompute();store()};
+  let control;
+  if(inp.type==="choice"){control=el("select",{id:"in_"+inp.id,onchange:e=>set("value",e.target.value)},el("option",{value:""},"선택 안 함 (확인 불가)"),...(inp.options||[]).map(o=>el("option",{value:o.score,selected:String(cur.value)===String(o.score)},`${o.score}. ${o.label}`)))}
+  else if(inp.type==="text"){control=el("textarea",{id:"in_"+inp.id,rows:"2",placeholder:"내용 없음",oninput:e=>set("value",e.target.value)},cur.value||"")}
+  else{control=el("input",{id:"in_"+inp.id,type:"number",step:inp.type==="integer"?"1":"any",inputmode:"decimal",value:cur.value??"",placeholder:"값 없음",oninput:e=>set("value",e.target.value)})}
+  const ev=el("details",{class:"ev",open:(cur.source||cur.quote)?true:false},el("summary",{},"근거 기록"),
+    el("div",{class:"ev-grid"},
+      el("input",{id:"src_"+inp.id,type:"text",placeholder:"출처 (문서명, URL)",value:cur.source||"",oninput:e=>set("source",e.target.value)}),
+      el("input",{id:"date_"+inp.id,type:"text",placeholder:"기준일",value:cur.date||"",oninput:e=>set("date",e.target.value)}),
+      el("textarea",{id:"quote_"+inp.id,placeholder:"근거 문장 또는 산정 방법",oninput:e=>set("quote",e.target.value)},cur.quote||"")));
+  return el("div",{class:"field"},el("label",{class:"field-label",for:"in_"+inp.id},el("span",{text:inp.label}),el("span",{class:"unit",text:inp.unit||""})),control,el("div",{class:"hint",text:"찾을 곳: "+inp.source_hint}),ev)
+}
+
+/* ---------- 결과 ---------- */
+function recompute(){
+  const{out}=computeAll(rubric,state.values);
+  let scored=0,missing=0,over=0;
+  for(const ind of rubric.indicators){const a=out[ind.id].score,f=finalScore(ind.id,a);
+    const chip=$("#chip_"+ind.id);if(chip){chip.className="chip "+(f?"c"+f:"cna");chip.textContent=f?f+"점":"–"}
+    if(f)scored++;else missing++;if(state.overrides[ind.id]&&state.overrides[ind.id].score)over++}
+  $("#summary").replaceChildren(
+    el("span",{},el("b",{text:scored}),` / ${rubric.indicators.length} 지표 채점`),
+    el("span",{},el("b",{text:missing}),"  확인 불가"),
+    el("span",{},el("b",{text:over}),"  평가자 수정"));
+  $("#resTitle").textContent=state.meta.target?`${state.meta.target} 축별 점수`:"축별 점수";
+  renderProfile(out);renderTable(out);renderTasks(out);
+}
+function renderProfile(out){
+  const rowH=24,axGap=26,left=150,right=16,width=520,dotX=s=>left+(s-1)*((width-left-right-20)/4)+10;
+  let y=22;const rows=[];
+  for(const ax of rubric.axes){rows.push({ax,y});y+=axGap-6;for(const ind of rubric.indicators.filter(i=>i.axis===ax.id)){rows.push({ind,y});y+=rowH}y+=6}
+  const h=y+6;const svg=sv("svg",{viewBox:`0 0 ${width} ${h}`,role:"img","aria-label":"지표별 확정 점수와 목표 점수"});
+  for(let s=1;s<=5;s++){svg.append(sv("line",{x1:dotX(s),x2:dotX(s),y1:14,y2:h-4,stroke:"var(--line)","stroke-width":1}));svg.append(sv("text",{x:dotX(s),y:10,"text-anchor":"middle",class:"tick"},s))}
+  for(const r of rows){
+    if(r.ax){svg.append(sv("text",{x:0,y:r.y+10,class:"ax"},`${r.ax.id} · ${r.ax.name}`));continue}
+    const ind=r.ind,cy=r.y+8,a=out[ind.id].score,f=finalScore(ind.id,a),t=state.targets[ind.id]?Number(state.targets[ind.id]):null;
+    svg.append(sv("text",{x:0,y:cy+4,class:"lbl"},`${ind.id} ${ind.name}`));
+    if(f&&t&&t>f)svg.append(sv("line",{x1:dotX(f),x2:dotX(t),y1:cy,y2:cy,stroke:"var(--accent)","stroke-width":2,"stroke-opacity":.45}));
+    if(f)svg.append(sv("circle",{cx:dotX(f),cy,r:6,fill:`var(--s${f})`,stroke:"var(--surface)","stroke-width":1.5}));
+    else svg.append(sv("rect",{x:dotX(1)-6,y:cy-2,width:dotX(5)-dotX(1)+12,height:4,fill:"var(--na)","fill-opacity":.45}));
+    if(t)svg.append(sv("circle",{cx:dotX(t),cy,r:8,fill:"none",stroke:"var(--fg)","stroke-width":1.6,"stroke-dasharray":"2 2"}));
+  }
+  $("#profile").replaceChildren(svg);
+}
+function renderTable(out){
+  const t=$("#scoreTable");t.replaceChildren();
+  t.append(el("thead",{},el("tr",{},el("th",{text:"지표"}),el("th",{text:"엔진"}),el("th",{text:"확정"}),el("th",{text:"목표"}),el("th",{text:"적용 규칙과 수정 사유"}))));
+  const tb=el("tbody");
+  for(const ind of rubric.indicators){
+    const a=out[ind.id].score,ov=state.overrides[ind.id]||{},f=finalScore(ind.id,a);
+    const sel=el("select",{id:"ov_"+ind.id,"aria-label":ind.name+" 확정 점수",onchange:e=>{state.overrides[ind.id]=Object.assign({},ov,{score:e.target.value});recompute();store()}},
+      el("option",{value:""},"엔진값"),...[1,2,3,4,5].map(s=>el("option",{value:s,selected:String(ov.score)===String(s)},s)));
+    const tgt=el("select",{id:"tg_"+ind.id,"aria-label":ind.name+" 목표 점수",onchange:e=>{state.targets[ind.id]=e.target.value;recompute();store()}},
+      el("option",{value:""},"–"),...[1,2,3,4,5].map(s=>el("option",{value:s,selected:String(state.targets[ind.id])===String(s)},s)));
+    const reason=ov.score?el("input",{id:"rs_"+ind.id,type:"text",placeholder:"수정 사유",value:ov.reason||"",oninput:e=>{state.overrides[ind.id]=Object.assign({},state.overrides[ind.id],{reason:e.target.value});store()}}):null;
+    const lv=f?ind.levels[String(f)]:null;
+    tb.append(el("tr",{},
+      el("td",{},el("div",{},el("span",{class:"mono muted",text:ind.id+" "}),ind.name),el("div",{class:"explain",text:`${ind.importance==="high"?"중요도 높음":ind.importance==="medium"?"중요도 중간":"중요도 낮음"} · ${ind.controllable==="yes"?"통제 가능":ind.controllable==="partial"?"부분 통제":"통제 불가"} · ${ind.anchor_type==="external"?"외부 기준":"사실 기준"}`})),
+      el("td",{},el("span",{class:"chip "+(a?"c"+a:"cna"),text:a?a:"–"})),
+      el("td",{},sel),el("td",{},tgt),
+      el("td",{},el("div",{class:"explain",text:out[ind.id].explain}),lv?el("div",{class:"explain",text:"단계 의미: "+lv}):null,reason)));
+  }
+  t.append(tb);
+  const ex=$("#external");ex.replaceChildren();
+  if(rubric.context&&rubric.context.length){
+    ex.append(el("h3",{text:"기업 여건 (점수 제외)"}));
+    for(const c of rubric.context){const v=(state.values[c.id]||{}).value;
+      ex.append(el("div",{class:"ctx"},el("b",{text:c.label}),el("div",{class:v?"":"muted",text:v||"기록 없음"})))}}
+  ex.append(el("h3",{text:"외부 여건 (점수 제외)"}),...(rubric.external_factors||[]).map(x=>el("div",{},el("b",{text:x.name+" "}),el("span",{class:"muted",text:x.description}))));
+}
+function renderTasks(out){
+  const host=$("#tasks");host.replaceChildren();
+  const list=rubric.indicators.filter(ind=>{const f=finalScore(ind.id,out[ind.id].score);return ind.importance==="high"&&ind.controllable!=="no"&&f&&f<=2});
+  if(!list.length){host.append(el("div",{class:"hint",text:"아직 해당 지표가 없습니다. 값을 입력하면 자동으로 표시됩니다."}));return}
+  for(const ind of list){const f=finalScore(ind.id,out[ind.id].score);
+    host.append(el("div",{class:"task"},el("span",{class:"chip c"+f,text:f+"점"}),el("div",{},el("b",{text:`${ind.id} ${ind.name}`}),el("div",{class:"explain",text:ind.question}))))}
+}
+
+/* ---------- 메타 ---------- */
+function bindMeta(){
+  const map={m_target:"target",m_item:"item",m_asof:"asof",m_targetDate:"targetDate",m_evaluator:"evaluator"};
+  for(const[id,k]of Object.entries(map)){const n=$("#"+id);n.value=state.meta[k]||"";n.oninput=()=>{state.meta[k]=n.value;recompute();store()}}
+}
+function renderHeader(){$("#rubricName").textContent=rubric.meta.name;$("#rubricMeta").textContent=`평가 틀 v${rubric.meta.version} · ${rubric.meta.evaluation_mode==="absolute"?"절대평가":"평가"} · 지표 ${rubric.indicators.length}개`}
+function renderAll(){renderHeader();bindMeta();renderInputs();recompute()}
+function say(msg){$("#status").textContent=msg}
+
+/* ---------- 저장·불러오기 ---------- */
+function snapshot(){return{kind:"evaluation",rubric_id:rubric.meta.id,rubric_version:rubric.meta.version,rubric,meta:state.meta,values:state.values,overrides:state.overrides,targets:state.targets,scores:Object.fromEntries(Object.entries(computeAll(rubric,state.values).out).map(([k,v])=>[k,{engine:v.score,final:finalScore(k,v.score),explain:v.explain}])),updated_at:new Date().toISOString()}}
+async function save(){
+  if(!state.meta.target){say("평가 대상 이름을 먼저 입력해 주세요.");$("#m_target").focus();return}
+  if(!db){store();say("이 화면에서는 서버 저장을 쓸 수 없어 이 브라우저에만 임시 저장했습니다.");return}
+  try{const ref=state.id?db.collection("evaluations").doc(state.id):db.collection("evaluations").doc();
+    await ref.set(snapshot());state.id=ref.id;store();say(`저장했습니다 (${new Date().toLocaleTimeString("ko-KR")}).`)}
+  catch(e){say(e&&e.code==="invalid_argument"?"저장 권한이 없습니다. 이 페이지의 편집 권한이 있는 계정으로 열어 주세요.":"저장하지 못했습니다. 잠시 후 다시 시도해 주세요.")}
+}
+function loadSnapshot(d,id){
+  if(d.rubric)rubric=d.rubric;
+  state=Object.assign(blankState(),{id:id||null,meta:d.meta||{},values:d.values||{},overrides:d.overrides||{},targets:d.targets||{}});
+  store();renderAll();
+}
+async function openList(){
+  const list=$("#evalList");list.replaceChildren();
+  if(!db){list.append(el("p",{class:"hint",text:"이 화면에서는 서버 저장소를 쓸 수 없습니다. JSON 파일 불러오기를 이용해 주세요."}))}
+  else{try{const snap=await db.collection("evaluations").get();
+      if(!snap.docs.length)list.append(el("p",{class:"hint",text:"저장된 평가가 없습니다. 평가 대상을 입력하고 '평가 저장'을 누르면 여기에 나타납니다."}));
+      for(const doc of snap.docs){const d=doc.data()||{};const m=d.meta||{};
+        list.append(el("button",{type:"button",onclick:()=>{loadSnapshot(d,doc.id);$("#dlgOpen").close();say(`'${m.target||"이름 없음"}' 평가를 열었습니다.`)}},
+          el("span",{},el("b",{text:m.target||"이름 없음"}),el("span",{class:"hint",text:"  "+(m.item||"")})),
+          el("span",{class:"hint mono",text:(d.updated_at||"").slice(0,10)})))}}
+    catch(e){list.append(el("p",{class:"hint",text:"목록을 읽지 못했습니다. 잠시 후 다시 시도해 주세요."}))}}
+  $("#dlgOpen").showModal();
+}
+async function exportJson(){
+  const data=JSON.stringify(snapshot(),null,2);
+  const name=`${(state.meta.target||"평가").replace(/[\\/:*?"<>|]/g,"")}_경쟁력진단_${new Date().toISOString().slice(0,10)}.json`;
+  if(!downloads){try{const b=new Blob([data],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);say("JSON 파일을 저장했습니다.")}catch(e){say("파일을 저장하지 못했습니다.")}return}
+  try{await downloads.save({filename:name,data});say("JSON 파일을 저장했습니다.")}
+  catch(e){say(e&&e.code==="declined"?"저장을 취소했습니다.":"파일을 저장하지 못했습니다.")}
+}
+function importFile(file){
+  const fr=new FileReader();
+  fr.onload=()=>{try{const d=JSON.parse(fr.result);
+      if(d.kind==="evaluation"){loadSnapshot(d,null);say("평가 파일을 불러왔습니다. 저장하면 새 평가로 기록됩니다.")}
+      else if(d.meta&&d.indicators&&d.inputs){rubric=d;state=blankState();store();renderAll();say(`평가 틀 '${d.meta.name}'을 불러왔습니다.`)}
+      else say("평가 틀이나 평가 파일 형식이 아닙니다.")}
+    catch(e){say("JSON을 읽지 못했습니다. 파일 내용을 확인해 주세요.")}};
+  fr.readAsText(file);
+}
+
+$("#btnSave").onclick=save;
+$("#btnOpen").onclick=openList;
+$("#dlgClose").onclick=()=>$("#dlgOpen").close();
+$("#btnNew").onclick=()=>{state=blankState();store();renderAll();say("새 평가를 시작했습니다.")};
+$("#btnExport").onclick=exportJson;
+$("#btnImport").onclick=()=>$("#fileImport").click();
+$("#fileImport").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value=""};
+
+restore();renderAll();
+
+if(window.claude&&window.claude.use){
+  window.claude.use("db").then(async d=>{db=d;if(!db)return;
+    try{const snap=await db.collection("evaluations").get();
+      if(snap.docs.length){
+        const docs=snap.docs.slice().sort((a,b)=>String((b.data()||{}).updated_at||"").localeCompare(String((a.data()||{}).updated_at||"")));
+        const doc=docs[0],d=doc.data()||{};
+        const stale=!state.meta.target||!state.id||(d.rubric&&d.rubric.meta&&rubric.meta&&(d.rubric.meta.id!==rubric.meta.id||d.rubric.meta.version!==rubric.meta.version));
+        if(stale){loadSnapshot(d,doc.id);say(`최근 저장된 평가 '${(d.meta||{}).target||""}'를 불러왔습니다.`)}}}catch(e){}
+  });
+  window.claude.use("downloads").then(d=>{downloads=d;if(!d)$("#btnExport").hidden=true});
+}
+})();
+</script>
