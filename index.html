@@ -1154,7 +1154,7 @@ function renderTable(out){
   for(const ind of rubric.indicators){
     const a=out[ind.id].score,ov=state.overrides[ind.id]||{},f=finalScore(ind.id,a);
     const sel=el("select",{id:"ov_"+ind.id,"aria-label":ind.name+" 확정 점수",onchange:e=>{state.overrides[ind.id]=Object.assign({},ov,{score:e.target.value});recompute();store()}},
-      el("option",{value:""},"엔진값"),...[1,2,3,4,5].map(s=>el("option",{value:s,selected:String(ov.score)===String(s)},s)));
+      el("option",{value:""},a?`${a} (엔진)`:"–"),...[1,2,3,4,5].map(s=>el("option",{value:s,selected:String(ov.score)===String(s)},s)));
     const tgt=el("select",{id:"tg_"+ind.id,"aria-label":ind.name+" 목표 점수",onchange:e=>{state.targets[ind.id]=e.target.value;recompute();store()}},
       el("option",{value:""},"–"),...[1,2,3,4,5].map(s=>el("option",{value:s,selected:String(state.targets[ind.id])===String(s)},s)));
     const reason=ov.score?el("input",{id:"rs_"+ind.id,type:"text",placeholder:"수정 사유",value:ov.reason||"",oninput:e=>{state.overrides[ind.id]=Object.assign({},state.overrides[ind.id],{reason:e.target.value});store()}}):null;
