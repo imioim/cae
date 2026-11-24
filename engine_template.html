@@ -1,3 +1,7 @@
+<!DOCTYPE html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>경쟁력 진단 엔진</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -101,6 +105,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
       <div class="toolbar">
         <button id="btnImport" type="button">JSON 불러오기</button>
+        <button id="btnUrl" type="button">링크로 불러오기</button>
         <button id="btnStart" class="primary" type="button">평가 시작</button>
         <button id="btnSave" type="button">평가 저장</button>
         <button id="btnOpen" type="button">저장된 평가</button>
@@ -147,6 +152,15 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     </aside>
   </div>
 </div>
+
+<dialog id="dlgUrl">
+  <h2>링크로 JSON 불러오기</h2>
+  <p class="hint">온라인에 있는 평가 틀이나 평가 자료 JSON 파일의 주소를 입력하세요. GitHub 파일 주소(github.com/…/blob/…)는 자동으로 원본 주소로 바꿉니다.</p>
+  <form id="urlForm" style="display:flex;flex-direction:column;gap:10px">
+    <input id="urlInput" type="url" placeholder="https://imioim.github.io/cae/xavis_evaluation_v02.json" style="font-size:16px">
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button id="urlCancel" type="button">닫기</button><button class="primary" type="submit">불러오기</button></div>
+  </form>
+</dialog>
 
 <dialog id="dlgSave">
   <h2>평가 결과 저장</h2>
@@ -437,23 +451,43 @@ async function openList(){
     catch(e){list.append(el("p",{class:"hint",text:"목록을 읽지 못했습니다. 잠시 후 다시 시도해 주세요."}))}}
   $("#dlgOpen").showModal();
 }
+function importData(d){
+  if(d.kind==="evaluation"){loadSnapshot(d,null);say("저장했던 평가를 불러왔습니다.");return true}
+  if(d.meta&&d.indicators&&d.inputs){const ev=d.evaluation||null;const rb=Object.assign({},d);delete rb.evaluation;rubric=rb;state=blankState();
+    if(ev){state.meta=Object.assign(state.meta,ev.meta||{});state.values=ev.values||{};state.targets=ev.targets||{};state.overrides=ev.overrides||{}}
+    store();renderAll();say(ev?`'${d.meta.name}'과 평가 자료를 불러왔습니다. 평가 정보와 자료를 확인한 뒤 '평가 시작'을 누르세요.`:`평가 틀 '${d.meta.name}'을 불러왔습니다. 평가 정보와 자료를 입력한 뒤 '평가 시작'을 누르세요.`);return true}
+  say("평가 틀이나 평가 파일 형식이 아닙니다.");return false;
+}
 function importFile(file){
   const fr=new FileReader();
-  fr.onload=()=>{try{const d=JSON.parse(fr.result);
-      if(d.kind==="evaluation"){loadSnapshot(d,null);say("저장했던 평가를 불러왔습니다.")}
-      else if(d.meta&&d.indicators&&d.inputs){const ev=d.evaluation||null;const rb=Object.assign({},d);delete rb.evaluation;rubric=rb;state=blankState();
-        if(ev){state.meta=Object.assign(state.meta,ev.meta||{});state.values=ev.values||{};state.targets=ev.targets||{};state.overrides=ev.overrides||{}}
-        store();renderAll();say(ev?`'${d.meta.name}'과 평가 자료를 불러왔습니다. 평가 정보와 자료를 확인한 뒤 '평가 시작'을 누르세요.`:`평가 틀 '${d.meta.name}'을 불러왔습니다. 평가 정보와 자료를 입력한 뒤 '평가 시작'을 누르세요.`)}
-      else say("평가 틀이나 평가 파일 형식이 아닙니다.")}
-    catch(e){say("JSON을 읽지 못했습니다. 파일 내용을 확인해 주세요.")}};
+  fr.onload=()=>{let d;try{d=JSON.parse(fr.result)}catch(e){say("JSON을 읽지 못했습니다. 파일 내용을 확인해 주세요.");return}importData(d)};
   fr.readAsText(file);
 }
-
+function normalizeUrl(u){
+  u=(u||"").trim();
+  const m=/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/.exec(u);
+  if(m)return`https://raw.githubusercontent.com/${m[1]}/${m[2]}/${m[3]}`;
+  return u;
+}
+async function importUrl(raw){
+  const url=normalizeUrl(raw);
+  if(!url){say("JSON 파일 주소를 입력해 주세요.");return false}
+  say("파일을 불러오는 중입니다…");
+  let res;
+  try{res=await fetch(url,{cache:"no-store"})}
+  catch(e){say("주소에 연결하지 못했습니다. 주소가 맞는지, 외부 접근(CORS)을 허용하는 곳인지 확인해 주세요.");return false}
+  if(!res.ok){say(`파일을 받지 못했습니다 (응답 ${res.status}). 주소를 확인해 주세요.`);return false}
+  let d;try{d=await res.json()}catch(e){say("받은 파일이 JSON 형식이 아닙니다.");return false}
+  return importData(d);
+}
 $("#btnSave").onclick=save;
 $("#btnOpen").onclick=openList;
 $("#dlgClose").onclick=()=>$("#dlgOpen").close();
 $("#btnNew").onclick=()=>{state=blankState();store();renderAll();say("새 평가를 시작했습니다. JSON 파일을 불러오거나 자료를 입력하세요.")};
 $("#btnStart").onclick=startEval;
+$("#btnUrl").onclick=()=>{$("#dlgUrl").showModal();$("#urlInput").focus()};
+$("#urlCancel").onclick=()=>$("#dlgUrl").close();
+$("#urlForm").onsubmit=async e=>{e.preventDefault();const ok=await importUrl($("#urlInput").value);if(ok)$("#dlgUrl").close()};
 $("#svXlsx").onclick=()=>{saveXlsx();$("#dlgSave").close()};
 $("#svTxt").onclick=()=>{saveTxt();$("#dlgSave").close()};
 $("#svJson").onclick=()=>{saveJson();$("#dlgSave").close()};
@@ -462,6 +496,7 @@ $("#btnImport").onclick=()=>$("#fileImport").click();
 $("#fileImport").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value=""};
 
 restore();renderAll();
+try{const q=new URLSearchParams(location.search).get("json");if(q)importUrl(new URL(q,location.href).href)}catch(e){}
 if(!(window.claude&&window.claude.use))$("#btnOpen").hidden=true;
 if(!state.meta.target)say("JSON 불러오기로 평가 틀이나 평가 자료 파일을 여세요.");
 
