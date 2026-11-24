@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;700&display=swap">
 <style>
-/* Layout: 상단 평가 정보 → 왼쪽 자료 입력(축별) / 오른쪽 결과(고정). 휴대폰에서는 결과가 위로 */
+/* Layout: 상단 평가 정보 → 왼쪽 자료 입력(범주별) / 오른쪽 결과(고정). 휴대폰에서는 결과가 위로 */
 :root{
   --bg:#f3f5f7; --surface:#ffffff; --sunk:#e9edf1; --line:#d3dae1;
   --fg:#16212c; --muted:#5a6876; --accent:#1f5f8f; --accent-soft:#dbe8f2;
@@ -129,7 +129,7 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     <aside class="results" id="results" aria-label="평가 결과">
       <div>
         <div class="eyebrow">평가 결과</div>
-        <h2 id="resTitle">축별 점수</h2>
+        <h2 id="resTitle">범주별 점수</h2>
       </div>
       <div class="summary" id="summary"></div>
       <div class="profile" id="profile"></div>
@@ -1026,8 +1026,9 @@ let state=blankState();
 let db=null, downloads=null;
 
 function blankState(){return{id:null,started:false,meta:{target:"",item:"",asof:"",targetDate:"",evaluator:""},values:{},overrides:{},targets:{}}}
-function store(){try{localStorage.setItem("draft",JSON.stringify({rubric,state}))}catch(e){}}
-function restore(){try{const d=JSON.parse(localStorage.getItem("draft")||"null");if(d&&d.rubric&&d.state){rubric=d.rubric;state=Object.assign(blankState(),d.state)}}catch(e){}}
+const BASE=(t=>{let h=0;for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return String(h)})($("#defaultRubric").textContent);
+function store(){try{localStorage.setItem("draft",JSON.stringify({base:BASE,rubric,state}))}catch(e){}}
+function restore(){try{const d=JSON.parse(localStorage.getItem("draft")||"null");if(d&&d.base===BASE&&d.rubric&&d.state){rubric=d.rubric;state=Object.assign(blankState(),d.state)}else localStorage.removeItem("draft")}catch(e){}}
 
 /* ---------- 채점 엔진 (순수 함수) ---------- */
 const isNum=v=>typeof v==="number"&&isFinite(v);
@@ -1127,7 +1128,7 @@ function recompute(){
     el("span",{},el("b",{text:scored}),` / ${rubric.indicators.length} 지표 채점`),
     el("span",{},el("b",{text:missing}),"  확인 불가"),
     el("span",{},el("b",{text:over}),"  평가자 수정"));
-  $("#resTitle").textContent=state.meta.target?`${state.meta.target} 축별 점수`:"축별 점수";
+  $("#resTitle").textContent=state.meta.target?`${state.meta.target} 범주별 점수`:"범주별 점수";
   renderProfile(out);renderTable(out);renderTasks(out);
 }
 function renderProfile(out){
@@ -1314,7 +1315,7 @@ async function importUrl(raw){
 $("#btnSave").onclick=save;
 $("#btnOpen").onclick=openList;
 $("#dlgClose").onclick=()=>$("#dlgOpen").close();
-$("#btnNew").onclick=()=>{state=blankState();store();renderAll();say("새 평가를 시작했습니다. JSON 파일을 불러오거나 자료를 입력하세요.")};
+$("#btnNew").onclick=()=>{rubric=JSON.parse($("#defaultRubric").textContent);state=blankState();try{localStorage.removeItem("draft")}catch(e){}renderAll();say("새 평가를 시작했습니다. JSON 파일을 불러오거나 자료를 입력하세요.")};
 $("#btnStart").onclick=startEval;
 $("#btnUrl").onclick=()=>{$("#dlgUrl").showModal();$("#urlInput").focus()};
 $("#urlCancel").onclick=()=>$("#dlgUrl").close();
