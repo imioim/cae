@@ -1,0 +1,971 @@
+{
+ "meta": {
+  "id": "item-competitiveness",
+  "name": "품목 경쟁력 진단 평가 틀",
+  "version": "0.2",
+  "purpose": "산업융합 선도기업·혁신품목의 품목 단위 기술·시장·제도·데이터 여건을 절대평가하여 경쟁력 강화 과제를 도출하고, 회사 여건으로 방안의 실행 가능성을 판단",
+  "target_type": "품목 (산업용 검사·제조 장비)",
+  "first_application": "㈜자비스 삼차원 엑스선 단층촬영 자동검사 시스템 (2023 산업융합 선도기업)",
+  "evaluation_mode": "absolute",
+  "note": "점수는 품목 단위 지표로만 낸다. 회사 단위 정보는 '기업 여건'에 근거와 함께 기록하고 점수에 반영하지 않는다. 경쟁사는 시장 여건 서술에만 쓴다."
+ },
+ "scale": {
+  "min": 1,
+  "max": 5,
+  "meaning": {
+   "1": "다음 성장 단계 요구 수준에 크게 못 미침",
+   "3": "기본 요건은 갖추었으나 확산 단계 요구 수준에는 미달",
+   "5": "확산 단계 요구 수준을 충족"
+  },
+  "missing": "확인 불가 (점수 없음, 자료 보완 대상으로 표시)"
+ },
+ "axes": [
+  {
+   "id": "T",
+   "name": "기술",
+   "description": "품목 기술의 성숙도, 성능 입증, 연구개발, 지식재산"
+  },
+  {
+   "id": "M",
+   "name": "시장",
+   "description": "품목의 고객 기반, 적용 범위, 매출 추이, 해외 레퍼런스"
+  },
+  {
+   "id": "I",
+   "name": "제도",
+   "description": "표준 참여, 시장 진입 인증"
+  },
+  {
+   "id": "D",
+   "name": "데이터·생태계",
+   "description": "학습 데이터 확보 구조, 수요기업 협력, 차세대 대응"
+  }
+ ],
+ "inputs": [
+  {
+   "id": "main_product_trl",
+   "label": "품목 기술성숙도(TRL)",
+   "type": "integer",
+   "unit": "단계",
+   "source_hint": "납품·양산 적용 실적, 수주 공시, 기사",
+   "extraction_prompt": "주력 품목이 산업핵심기술개발사업 TRL 9단계 중 어디에 해당하는지 판단 근거 문장과 함께 제시. 고객 양산 라인 적용 실적이 있으면 9."
+  },
+  {
+   "id": "judgment_disclosure_level",
+   "label": "판정 성능 공개 수준",
+   "type": "choice",
+   "source_hint": "회사 IR 자료, 제품 소개, 기사, 논문",
+   "extraction_prompt": "검사 장비의 판정 성능(과검율·미검율·검출률 등) 수치가 공개되었는지, 결함 유형별로 구분되는지 확인.",
+   "options": [
+    {
+     "score": 1,
+     "label": "판정 성능 관련 언급 없음"
+    },
+    {
+     "score": 2,
+     "label": "정성적 주장만 있음 (빠르고 정확함 등)"
+    },
+    {
+     "score": 3,
+     "label": "단일 수치 공개 (검출률, 정확도 등 한 가지)"
+    },
+    {
+     "score": 4,
+     "label": "과검율·미검율 수치 공개 (결함 유형 구분 없음 또는 상용 기준 1% 미충족)"
+    },
+    {
+     "score": 5,
+     "label": "결함 유형별 과검율·미검율 공개, 각 1% 이하 충족"
+    }
+   ]
+  },
+  {
+   "id": "item_rnd_level",
+   "label": "품목 관련 연구개발 수준",
+   "type": "choice",
+   "source_hint": "사업보고서 정부과제 목록, NTIS, 과제 선정 기사",
+   "extraction_prompt": "평가 품목(및 그 차세대 형태)과 직접 관련된 연구개발 과제의 수와 회사의 역할.",
+   "options": [
+    {
+     "score": 1,
+     "label": "품목 관련 연구개발 확인 안 됨"
+    },
+    {
+     "score": 2,
+     "label": "자체 개발만 확인"
+    },
+    {
+     "score": 3,
+     "label": "품목 관련 정부과제 1건 수행"
+    },
+    {
+     "score": 4,
+     "label": "품목 관련 정부과제 2건 이상 또는 차세대 품목 과제 참여"
+    },
+    {
+     "score": 5,
+     "label": "품목 관련 정부과제 주관 + 수요기업 양산 라인 실증 연계"
+    }
+   ]
+  },
+  {
+   "id": "ip_level",
+   "label": "품목 핵심 기술 지식재산 수준",
+   "type": "choice",
+   "source_hint": "KIPRIS, 사업보고서 지식재산권 현황",
+   "extraction_prompt": "평가 품목(배터리 CT·AI 판정 등)과 관련된 특허의 출원·등록 상태와 국가.",
+   "options": [
+    {
+     "score": 1,
+     "label": "관련 특허 없음"
+    },
+    {
+     "score": 2,
+     "label": "국내 출원만 있음"
+    },
+    {
+     "score": 3,
+     "label": "국내 등록 있음"
+    },
+    {
+     "score": 4,
+     "label": "해외(PCT 포함) 출원 있음"
+    },
+    {
+     "score": 5,
+     "label": "해외 등록 있음"
+    }
+   ]
+  },
+  {
+   "id": "item_customer_level",
+   "label": "품목 고객 기반",
+   "type": "choice",
+   "source_hint": "사업보고서 판매전략, 수주 공시, 기사",
+   "extraction_prompt": "평가 품목을 양산 라인에 적용한 고객의 범위.",
+   "options": [
+    {
+     "score": 1,
+     "label": "양산 적용 고객 없음"
+    },
+    {
+     "score": 2,
+     "label": "국내 고객 1곳"
+    },
+    {
+     "score": 3,
+     "label": "국내 고객 복수"
+    },
+    {
+     "score": 4,
+     "label": "국내 주요 고객군 전체(배터리 3사 등)"
+    },
+    {
+     "score": 5,
+     "label": "국내 주요 고객군 전체 + 해외 복수 고객 양산 적용"
+    }
+   ]
+  },
+  {
+   "id": "item_scope_level",
+   "label": "품목 적용 범위",
+   "type": "choice",
+   "source_hint": "사업보고서 시장 현황, 제품 소개",
+   "extraction_prompt": "품목이 대응하는 셀 형태(원통·각형·파우치)와 공정 방식(오프라인·인라인), 차세대 형태 적용 여부.",
+   "options": [
+    {
+     "score": 1,
+     "label": "셀 형태 1종 대응"
+    },
+    {
+     "score": 2,
+     "label": "셀 형태 2종 대응"
+    },
+    {
+     "score": 3,
+     "label": "3종 모두 대응 (오프라인 위주)"
+    },
+    {
+     "score": 4,
+     "label": "3종 모두 인라인 수주 실적"
+    },
+    {
+     "score": 5,
+     "label": "3종 인라인 + 차세대 형태(46파이·전고체 등) 양산 적용"
+    }
+   ]
+  },
+  {
+   "id": "item_rev_latest",
+   "label": "품목 매출 (최근 사업연도)",
+   "type": "number",
+   "unit": "억 원",
+   "source_hint": "사업보고서 '주요 제품 등의 현황'",
+   "extraction_prompt": "평가 품목의 최근 사업연도 매출."
+  },
+  {
+   "id": "item_rev_prev",
+   "label": "품목 매출 (전년도)",
+   "type": "number",
+   "unit": "억 원",
+   "source_hint": "사업보고서 '주요 제품 등의 현황'",
+   "extraction_prompt": "평가 품목의 전년도 매출."
+  },
+  {
+   "id": "production_reference_regions",
+   "label": "해외 양산 레퍼런스 지역 수",
+   "type": "integer",
+   "unit": "지역",
+   "source_hint": "수주 공시, 기사 (북미·유럽·중국·일본·동남아 등)",
+   "extraction_prompt": "고객 양산 라인에 장비가 적용된 해외 지역 수. 국내 제외."
+  },
+  {
+   "id": "standard_level",
+   "label": "표준 참여 수준",
+   "type": "choice",
+   "source_hint": "국가표준인증 통합정보시스템, 표준 관련 기사, 회사 발표",
+   "extraction_prompt": "주력 품목 관련 검사 표준 활동 참여 여부와 단계.",
+   "options": [
+    {
+     "score": 1,
+     "label": "참여 확인 안 됨"
+    },
+    {
+     "score": 2,
+     "label": "표준화 협의체·포럼 참여"
+    },
+    {
+     "score": 3,
+     "label": "국가표준(KS) 제안"
+    },
+    {
+     "score": 4,
+     "label": "국가표준 제정 기여 또는 국제표준 활동 참여"
+    },
+    {
+     "score": 5,
+     "label": "국제표준(IEC·ISO) 제안·주도"
+    }
+   ]
+  },
+  {
+   "id": "market_cert_level",
+   "label": "품목 시장 진입 인증",
+   "type": "choice",
+   "source_hint": "사업보고서 '주요 제품 등 관련 각종 산업표준', 회사 인증 현황",
+   "extraction_prompt": "품목이 각 해외 시장에 판매되기 위해 갖춘 인증(CE, UL·NRTL, FDA, 중국·일본 인증 등).",
+   "options": [
+    {
+     "score": 1,
+     "label": "국내 법정 허가만"
+    },
+    {
+     "score": 2,
+     "label": "유럽 또는 북미 중 한 곳 인증"
+    },
+    {
+     "score": 3,
+     "label": "유럽·북미 인증 모두"
+    },
+    {
+     "score": 4,
+     "label": "유럽·북미 + 아시아 주요국 인증"
+    },
+    {
+     "score": 5,
+     "label": "주요 시장 인증 + 검사 성능의 제3자 인증"
+    }
+   ]
+  },
+  {
+   "id": "data_structure_level",
+   "label": "학습 데이터 확보 구조",
+   "type": "choice",
+   "source_hint": "회사 발표, 기사, 국책과제 내용",
+   "extraction_prompt": "판정 AI 학습 데이터를 어디서 어떻게 확보하는지.",
+   "options": [
+    {
+     "score": 1,
+     "label": "자체 시료 데이터만"
+    },
+    {
+     "score": 2,
+     "label": "산학 협력 등 외부 데이터 확보"
+    },
+    {
+     "score": 3,
+     "label": "고객 데이터 일부 이용 계약 또는 공동 데이터 확보"
+    },
+    {
+     "score": 4,
+     "label": "고객사 내부 재학습 체계 운영"
+    },
+    {
+     "score": 5,
+     "label": "복수 고객 데이터 활용 체계 + 합성 데이터 생산 체계"
+    }
+   ]
+  },
+  {
+   "id": "codev_level",
+   "label": "수요기업 공동개발",
+   "type": "choice",
+   "source_hint": "국책과제 컨소시엄 구성, 공동개발 기사",
+   "extraction_prompt": "수요기업(고객사)과 파일럿 라인 단계에서 공동개발하는지와 그 수.",
+   "options": [
+    {
+     "score": 1,
+     "label": "없음"
+    },
+    {
+     "score": 2,
+     "label": "협의·업무협약 단계"
+    },
+    {
+     "score": 3,
+     "label": "수요기업 1곳과 파일럿 공동개발"
+    },
+    {
+     "score": 4,
+     "label": "수요기업 2곳과 공동개발"
+    },
+    {
+     "score": 5,
+     "label": "수요기업 3곳 이상과 공동개발"
+    }
+   ]
+  },
+  {
+   "id": "nextgen_trl",
+   "label": "차세대 품목 기술성숙도(TRL)",
+   "type": "integer",
+   "unit": "단계 (계획 없음=0)",
+   "source_hint": "국책과제, 개발 발표, 기사",
+   "extraction_prompt": "차세대 배터리(전고체 등) 대응 품목의 TRL. 계획이 없으면 0."
+  }
+ ],
+ "derived": [
+  {
+   "id": "item_rev_ratio",
+   "label": "전년 대비 품목 매출",
+   "op": "percent",
+   "args": [
+    "item_rev_latest",
+    "item_rev_prev"
+   ],
+   "unit": "%"
+  }
+ ],
+ "indicators": [
+  {
+   "id": "T1",
+   "name": "품목 기술성숙도",
+   "axis": "T",
+   "question": "품목이 고객 양산 라인에 적용되는 단계에 도달했는가",
+   "anchor_type": "external",
+   "anchor_ref": "trl_industry",
+   "levels": {
+    "1": "TRL 1~3",
+    "2": "TRL 4~5",
+    "3": "TRL 6~7",
+    "4": "TRL 8 (인증)",
+    "5": "TRL 9 (양산 적용)"
+   },
+   "rule": {
+    "type": "range",
+    "field": "main_product_trl",
+    "bands": [
+     {
+      "min": 9,
+      "score": 5
+     },
+     {
+      "min": 8,
+      "max": 9,
+      "score": 4
+     },
+     {
+      "min": 6,
+      "max": 8,
+      "score": 3
+     },
+     {
+      "min": 4,
+      "max": 6,
+      "score": 2
+     },
+     {
+      "min": 1,
+      "max": 4,
+      "score": 1
+     }
+    ]
+   },
+   "controllable": "yes",
+   "importance": "medium"
+  },
+  {
+   "id": "T2",
+   "name": "판정 성능 입증",
+   "axis": "T",
+   "question": "검사 판정 성능을 고객이 비교할 수 있는 수치로 입증하는가",
+   "anchor_type": "external",
+   "anchor_ref": "commercial_inspection_criteria",
+   "levels": {
+    "1": "언급 없음",
+    "2": "정성적 주장",
+    "3": "단일 수치",
+    "4": "과검·미검 수치 공개",
+    "5": "결함 유형별 과검·미검 1% 이하 공개"
+   },
+   "rule": {
+    "type": "ordinal",
+    "field": "judgment_disclosure_level"
+   },
+   "controllable": "yes",
+   "importance": "high"
+  },
+  {
+   "id": "T3",
+   "name": "품목 연구개발",
+   "axis": "T",
+   "question": "품목과 차세대 형태에 대한 연구개발이 이어지고 있는가",
+   "anchor_type": "factual",
+   "anchor_ref": null,
+   "levels": {
+    "1": "확인 안 됨",
+    "2": "자체 개발만",
+    "3": "정부과제 1건",
+    "4": "정부과제 2건 이상 또는 차세대 과제 참여",
+    "5": "주관 + 수요기업 실증 연계"
+   },
+   "rule": {
+    "type": "ordinal",
+    "field": "item_rnd_level"
+   },
+   "controllable": "yes",
+   "importance": "medium"
+  },
+  {
+   "id": "T4",
+   "name": "지식재산",
+   "axis": "T",
+   "question": "품목의 핵심 기술이 국내외 특허로 보호되는가",
+   "anchor_type": "factual",
+   "anchor_ref": null,
+   "levels": {
+    "1": "특허 없음",
+    "2": "국내 출원",
+    "3": "국내 등록",
+    "4": "해외 출원",
+    "5": "해외 등록"
+   },
+   "rule": {
+    "type": "ordinal",
+    "field": "ip_level"
+   },
+   "controllable": "yes",
+   "importance": "medium"
+  },
+  {
+   "id": "M1",
+   "name": "품목 고객 기반",
+   "axis": "M",
+   "question": "품목이 주요 고객의 양산 라인에 폭넓게 들어가 있는가",
+   "anchor_type": "factual",
+   "anchor_ref": null,
+   "levels": {
+    "1": "양산 고객 없음",
+    "2": "국내 1곳",
+    "3": "국내 복수",
+    "4": "국내 주요 고객군 전체",
+    "5": "국내 전체 + 해외 복수"
+   },
+   "rule": {
+    "type": "ordinal",
+    "field": "item_customer_level"
+   },
+   "controllable": "partial",
+   "importance": "high"
+  },
+  {
+   "id": "M2",
+   "name": "품목 적용 범위",
+   "axis": "M",
+   "question": "품목이 셀 형태와 공정 방식, 차세대 형태까지 대응하는가",
+   "anchor_type": "factual",
+   "anchor_ref": null,
+   "levels": {
+    "1": "셀 형태 1종",
+    "2": "2종",
+    "3": "3종 오프라인",
+    "4": "3종 인라인 실적",
+    "5": "3종 인라인 + 차세대 형태 양산 적용"
+   },
+   "rule": {
+    "type": "ordinal",
+    "field": "item_scope_level"
+   },
+   "controllable": "yes",
+   "importance": "medium"
+  },
+  {
+   "id": "M3",
+   "name": "품목 매출 추이",
+   "axis": "M",
+   "question": "품목 매출이 유지되거나 늘고 있는가",
+   "anchor_type": "factual",
+   "anchor_ref": null,
+   "levels": {
+    "1": "전년 대비 50% 미만",
+    "2": "50~90%",
+    "3": "90~110%",
+    "4": "110~130%",
+    "5": "130% 이상"
+   },
+   "rule": {
+    "type": "range",
+    "field": "item_rev_ratio",
+    "bands": [
+     {
+      "min": 130,
+      "score": 5
+     },
+     {
+      "min": 110,
+      "max": 130,
+      "score": 4
+     },
+     {
+      "min": 90,
+      "max": 110,
+      "score": 3
+     },
+     {
+      "min": 50,
+      "max": 90,
+      "score": 2
+     },
+     {
+      "max": 50,
+      "score": 1
+     }
+    ]
+   },
+   "controllable": "partial",
+   "importance": "high"
+  },
+  {
+   "id": "M4",
+   "name": "품목 해외 양산 레퍼런스",
+   "axis": "M",
+   "question": "품목이 해외 고객의 양산 라인에 적용된 지역이 충분한가",
+   "anchor_type": "factual",
+   "anchor_ref": null,
+   "levels": {
+    "1": "없음",
+    "2": "1개 지역",
+    "3": "2개 지역",
+    "4": "3개 지역",
+    "5": "4개 지역 이상"
+   },
+   "rule": {
+    "type": "range",
+    "field": "production_reference_regions",
+    "bands": [
+     {
+      "min": 4,
+      "score": 5
+     },
+     {
+      "min": 3,
+      "max": 4,
+      "score": 4
+     },
+     {
+      "min": 2,
+      "max": 3,
+      "score": 3
+     },
+     {
+      "min": 1,
+      "max": 2,
+      "score": 2
+     },
+     {
+      "max": 1,
+      "score": 1
+     }
+    ]
+   },
+   "controllable": "yes",
+   "importance": "medium"
+  },
+  {
+   "id": "I1",
+   "name": "표준 참여",
+   "axis": "I",
+   "question": "품목의 검사 성능·방법 표준 형성에 참여하는가",
+   "anchor_type": "factual",
+   "anchor_ref": null,
+   "levels": {
+    "1": "참여 확인 안 됨",
+    "2": "협의체·포럼 참여",
+    "3": "KS 제안",
+    "4": "KS 제정 기여 또는 국제표준 활동",
+    "5": "국제표준 제안·주도"
+   },
+   "rule": {
+    "type": "ordinal",
+    "field": "standard_level"
+   },
+   "controllable": "yes",
+   "importance": "high"
+  },
+  {
+   "id": "I2",
+   "name": "품목 시장 진입 인증",
+   "axis": "I",
+   "question": "품목이 주요 해외 시장에 판매될 인증을 갖추었는가",
+   "anchor_type": "factual",
+   "anchor_ref": null,
+   "levels": {
+    "1": "국내 허가만",
+    "2": "유럽 또는 북미",
+    "3": "유럽·북미 모두",
+    "4": "유럽·북미 + 아시아 주요국",
+    "5": "주요 시장 + 검사 성능 제3자 인증"
+   },
+   "rule": {
+    "type": "ordinal",
+    "field": "market_cert_level"
+   },
+   "controllable": "yes",
+   "importance": "medium"
+  },
+  {
+   "id": "D1",
+   "name": "학습 데이터 확보 구조",
+   "axis": "D",
+   "question": "판정 AI를 개선할 데이터를 지속적으로 확보할 구조가 있는가",
+   "anchor_type": "factual",
+   "anchor_ref": null,
+   "levels": {
+    "1": "자체 시료만",
+    "2": "외부 데이터 확보",
+    "3": "고객 데이터 일부 이용",
+    "4": "고객사 내부 재학습 체계",
+    "5": "복수 고객 데이터 + 합성 데이터 체계"
+   },
+   "rule": {
+    "type": "ordinal",
+    "field": "data_structure_level"
+   },
+   "controllable": "yes",
+   "importance": "high"
+  },
+  {
+   "id": "D2",
+   "name": "수요기업 공동개발",
+   "axis": "D",
+   "question": "고객사와 파일럿 단계부터 함께 개발하는가",
+   "anchor_type": "factual",
+   "anchor_ref": null,
+   "levels": {
+    "1": "없음",
+    "2": "협의·협약",
+    "3": "1곳 공동개발",
+    "4": "2곳",
+    "5": "3곳 이상"
+   },
+   "rule": {
+    "type": "ordinal",
+    "field": "codev_level"
+   },
+   "controllable": "partial",
+   "importance": "high"
+  },
+  {
+   "id": "D3",
+   "name": "차세대 품목 대응",
+   "axis": "D",
+   "question": "차세대 배터리 등 다음 시장에 맞는 품목 형태를 준비하고 있는가",
+   "anchor_type": "external",
+   "anchor_ref": "trl_industry",
+   "levels": {
+    "1": "계획 없음",
+    "2": "TRL 1~3",
+    "3": "TRL 4~5",
+    "4": "TRL 6~7",
+    "5": "TRL 8 이상"
+   },
+   "rule": {
+    "type": "range",
+    "field": "nextgen_trl",
+    "bands": [
+     {
+      "min": 8,
+      "score": 5
+     },
+     {
+      "min": 6,
+      "max": 8,
+      "score": 4
+     },
+     {
+      "min": 4,
+      "max": 6,
+      "score": 3
+     },
+     {
+      "min": 1,
+      "max": 4,
+      "score": 2
+     },
+     {
+      "max": 1,
+      "score": 1
+     }
+    ]
+   },
+   "controllable": "yes",
+   "importance": "high"
+  }
+ ],
+ "context": [
+  {
+   "id": "c_financials",
+   "label": "회사 매출·영업손익 추이",
+   "source_hint": "사업보고서·반기보고서 연결 포괄손익계산서",
+   "type": "text"
+  },
+  {
+   "id": "c_rnd",
+   "label": "회사 연구개발비와 인력",
+   "source_hint": "사업보고서 연구개발비용, 연구개발 조직",
+   "type": "text"
+  },
+  {
+   "id": "c_mix",
+   "label": "회사 사업 구성",
+   "source_hint": "사업보고서 주요 제품 등의 현황",
+   "type": "text"
+  },
+  {
+   "id": "c_backlog",
+   "label": "수주잔고",
+   "source_hint": "사업보고서 수주상황",
+   "type": "text"
+  },
+  {
+   "id": "c_customers",
+   "label": "주요 고객 의존도",
+   "source_hint": "연결재무제표 주석 영업부문 정보",
+   "type": "text"
+  },
+  {
+   "id": "c_liquidity",
+   "label": "현금성 자산",
+   "source_hint": "연결재무제표 주석 현금및현금성자산",
+   "type": "text"
+  },
+  {
+   "id": "c_capital",
+   "label": "자본 관련 사건",
+   "source_hint": "거래소 공시 (주식병합, 유상증자 등)",
+   "type": "text"
+  },
+  {
+   "id": "c_designations",
+   "label": "기업 지정·인증",
+   "source_hint": "사업보고서, 회사 홈페이지",
+   "type": "text"
+  },
+  {
+   "id": "c_capacity",
+   "label": "실행 여력 종합 판단 (평가자 서술)",
+   "source_hint": "위 항목을 근거로 평가자가 작성",
+   "type": "text"
+  }
+ ],
+ "external_factors": [
+  {
+   "id": "X1",
+   "name": "전방 산업 업황",
+   "description": "2차전지 투자 둔화 등 고객 산업의 설비 투자 흐름"
+  },
+  {
+   "id": "X2",
+   "name": "고객사 양산 일정",
+   "description": "전고체·유리기판 등 고객사 양산 시점"
+  },
+  {
+   "id": "X3",
+   "name": "환율과 해외 정책",
+   "description": "환율, 북미 보조금 등 해외 공장 투자에 영향을 주는 정책"
+  }
+ ],
+ "references": [
+  {
+   "id": "trl_industry",
+   "title": "산업핵심기술개발사업 공고 별첨2 기술성숙도(TRL)",
+   "note": "1 기초실험 ~ 9 사업화(양산)"
+  },
+  {
+   "id": "commercial_inspection_criteria",
+   "title": "정대진·허헌(2024), 배터리 불량 검출을 위한 딥러닝 기반 X-ray 검사",
+   "note": "상용 장비 기준 과검율·미검율 각 1% 이하"
+  }
+ ],
+ "evaluation": {
+  "meta": {
+   "target": "",
+   "item": "",
+   "asof": "",
+   "targetDate": "",
+   "evaluator": ""
+  },
+  "values": {
+   "main_product_trl": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "judgment_disclosure_level": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "item_rnd_level": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "ip_level": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "item_customer_level": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "item_scope_level": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "item_rev_latest": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "item_rev_prev": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "production_reference_regions": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "standard_level": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "market_cert_level": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "data_structure_level": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "codev_level": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "nextgen_trl": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "c_financials": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "c_rnd": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "c_mix": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "c_backlog": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "c_customers": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "c_liquidity": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "c_capital": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "c_designations": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   },
+   "c_capacity": {
+    "value": "",
+    "source": "",
+    "date": "",
+    "quote": ""
+   }
+  },
+  "targets": {},
+  "overrides": {}
+ }
+}

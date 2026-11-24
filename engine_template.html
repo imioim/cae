@@ -100,11 +100,11 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
     </div>
     <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
       <div class="toolbar">
-        <button id="btnSave" class="primary" type="button">평가 저장</button>
+        <button id="btnImport" type="button">JSON 불러오기</button>
+        <button id="btnStart" class="primary" type="button">평가 시작</button>
+        <button id="btnSave" type="button">평가 저장</button>
         <button id="btnOpen" type="button">저장된 평가</button>
         <button id="btnNew" type="button">새 평가</button>
-        <button id="btnExport" type="button">JSON 내보내기</button>
-        <label class="hint" style="display:inline-flex;align-items:center;gap:6px"><button id="btnImport" type="button">불러오기</button></label>
         <input id="fileImport" type="file" accept=".json,application/json" hidden>
       </div>
       <div class="status" id="status" role="status"></div>
@@ -148,12 +148,24 @@ dialog::backdrop{background:rgba(0,0,0,.35)}
   </div>
 </div>
 
+<dialog id="dlgSave">
+  <h2>평가 결과 저장</h2>
+  <p class="hint">저장할 파일 형식을 고르세요.</p>
+  <div class="list">
+    <button id="svXlsx" type="button"><span><b>엑셀 파일 (.xlsx)</b><span class="hint">  요약, 지표별 점수, 입력값과 근거, 기업 여건</span></span></button>
+    <button id="svTxt" type="button"><span><b>텍스트 파일 (.txt)</b><span class="hint">  같은 내용을 읽기 쉬운 문서 형태로</span></span></button>
+    <button id="svJson" type="button"><span><b>JSON 파일 (.json)</b><span class="hint">  나중에 다시 불러와 이어서 평가</span></span></button>
+  </div>
+  <div style="display:flex;justify-content:flex-end"><button id="svClose" type="button">닫기</button></div>
+</dialog>
+
 <dialog id="dlgOpen">
   <h2>저장된 평가</h2>
   <div class="list" id="evalList"></div>
   <div style="display:flex;justify-content:flex-end"><button id="dlgClose" type="button">닫기</button></div>
 </dialog>
 
+<script src="xlsx.full.min.js"></script>
 <script type="application/json" id="defaultRubric">__RUBRIC__</script>
 <script>
 (function(){
@@ -168,7 +180,7 @@ let rubric=JSON.parse($("#defaultRubric").textContent);
 let state=blankState();
 let db=null, downloads=null;
 
-function blankState(){return{id:null,meta:{target:"",item:"",asof:"",targetDate:"",evaluator:""},values:{},overrides:{},targets:{}}}
+function blankState(){return{id:null,started:false,meta:{target:"",item:"",asof:"",targetDate:"",evaluator:""},values:{},overrides:{},targets:{}}}
 function store(){try{localStorage.setItem("draft",JSON.stringify({rubric,state}))}catch(e){}}
 function restore(){try{const d=JSON.parse(localStorage.getItem("draft")||"null");if(d&&d.rubric&&d.state){rubric=d.rubric;state=Object.assign(blankState(),d.state)}}catch(e){}}
 
@@ -255,6 +267,12 @@ function renderField(inp){
 
 /* ---------- 결과 ---------- */
 function recompute(){
+  if(!state.started){
+    for(const ind of rubric.indicators){const chip=$("#chip_"+ind.id);if(chip){chip.className="chip cna";chip.textContent="–"}}
+    $("#summary").replaceChildren(el("span",{class:"hint",text:"평가 정보와 자료를 확인한 뒤 '평가 시작'을 누르면 결과가 나옵니다."}));
+    $("#resTitle").textContent="평가 전";
+    $("#profile").replaceChildren();$("#scoreTable").replaceChildren();$("#tasks").replaceChildren();
+    return}
   const{out}=computeAll(rubric,state.values);
   let scored=0,missing=0,over=0;
   for(const ind of rubric.indicators){const a=out[ind.id].score,f=finalScore(ind.id,a);
@@ -328,17 +346,83 @@ function renderAll(){renderHeader();bindMeta();renderInputs();recompute()}
 function say(msg){$("#status").textContent=msg}
 
 /* ---------- 저장·불러오기 ---------- */
-function snapshot(){return{kind:"evaluation",rubric_id:rubric.meta.id,rubric_version:rubric.meta.version,rubric,meta:state.meta,values:state.values,overrides:state.overrides,targets:state.targets,scores:Object.fromEntries(Object.entries(computeAll(rubric,state.values).out).map(([k,v])=>[k,{engine:v.score,final:finalScore(k,v.score),explain:v.explain}])),updated_at:new Date().toISOString()}}
+function snapshot(){return{kind:"evaluation",started:true,rubric_id:rubric.meta.id,rubric_version:rubric.meta.version,rubric,meta:state.meta,values:state.values,overrides:state.overrides,targets:state.targets,scores:Object.fromEntries(Object.entries(computeAll(rubric,state.values).out).map(([k,v])=>[k,{engine:v.score,final:finalScore(k,v.score),explain:v.explain}])),updated_at:new Date().toISOString()}}
 async function save(){
+  if(!state.started){say("먼저 '평가 시작'을 눌러 평가를 마쳐 주세요.");return}
   if(!state.meta.target){say("평가 대상 이름을 먼저 입력해 주세요.");$("#m_target").focus();return}
-  if(!db){store();say("이 화면에서는 서버 저장을 쓸 수 없어 이 브라우저에만 임시 저장했습니다.");return}
-  try{const ref=state.id?db.collection("evaluations").doc(state.id):db.collection("evaluations").doc();
-    await ref.set(snapshot());state.id=ref.id;store();say(`저장했습니다 (${new Date().toLocaleTimeString("ko-KR")}).`)}
-  catch(e){say(e&&e.code==="invalid_argument"?"저장 권한이 없습니다. 이 페이지의 편집 권한이 있는 계정으로 열어 주세요.":"저장하지 못했습니다. 잠시 후 다시 시도해 주세요.")}
+  store();
+  if(db){try{const ref=state.id?db.collection("evaluations").doc(state.id):db.collection("evaluations").doc();
+    await ref.set(snapshot());state.id=ref.id;store()}catch(e){}}
+  $("#dlgSave").showModal();
 }
+function startEval(){
+  if(!state.meta.target){say("평가 대상을 입력하거나 JSON 파일을 불러와 주세요.");$("#m_target").focus();return}
+  state.started=true;store();recompute();
+  const{out}=computeAll(rubric,state.values);
+  const n=rubric.indicators.filter(i=>finalScore(i.id,out[i.id].score)).length;
+  say(`평가를 마쳤습니다. 지표 ${rubric.indicators.length}개 가운데 ${n}개를 채점했습니다. '평가 저장'으로 결과를 파일로 저장할 수 있습니다.`);
+  try{$("#results").scrollIntoView({behavior:"smooth",block:"start"})}catch(e){}
+}
+const IMP={high:"높음",medium:"중간",low:"낮음"},CTL={yes:"가능",partial:"부분 가능",no:"불가"};
+function report(){
+  const{vals,out}=computeAll(rubric,state.values);
+  const rows=rubric.indicators.map(ind=>{const a=out[ind.id].score,f=finalScore(ind.id,a),t=state.targets[ind.id]?Number(state.targets[ind.id]):null,ov=state.overrides[ind.id]||{};
+    const ax=rubric.axes.find(x=>x.id===ind.axis);
+    return{axis:ax?ax.name:ind.axis,id:ind.id,name:ind.name,question:ind.question,importance:IMP[ind.importance]||"",control:CTL[ind.controllable]||"",
+      anchor:ind.anchor_type==="external"?"외부 기준":"사실 기준",engine:a,final:f,target:t,level:f?(ind.levels[String(f)]||""):"",explain:out[ind.id].explain,
+      reason:ov.score?(ov.reason||""):"",task:!!(ind.importance==="high"&&ind.controllable!=="no"&&f&&f<=2)}});
+  const inputs=rubric.inputs.map(inp=>{const v=state.values[inp.id]||{};let shown=v.value??"";
+      if(inp.type==="choice"&&shown!==""){const o=(inp.options||[]).find(o=>String(o.score)===String(shown));if(o)shown=`${o.score}. ${o.label}`}
+      return{id:inp.id,label:inp.label,value:shown,unit:inp.unit||"",source:v.source||"",date:v.date||"",quote:v.quote||""}})
+    .concat((rubric.derived||[]).map(d=>({id:d.id,label:d.label+" (엔진 계산)",value:isNum(vals[d.id])?fmt(vals[d.id]):"",unit:d.unit||"",source:"",date:"",quote:`${d.args.map(k=>labelOf(rubric,k)).join(" ÷ ")}${d.op==="percent"?" × 100":""}`})));
+  const ctx=(rubric.context||[]).map(c=>{const v=state.values[c.id]||{};return{label:c.label,value:v.value||"",source:v.source||"",date:v.date||""}});
+  return{rows,inputs,ctx,ext:rubric.external_factors||[]};
+}
+function fileBase(){return`${(state.meta.target||"평가").replace(/[\\/:*?"<>|]/g,"")}_경쟁력진단_${new Date().toISOString().slice(0,10)}`}
+async function downloadFile(name,data,mime){
+  if(downloads&&typeof data==="string"){try{await downloads.save({filename:name,data});say(`${name} 파일을 저장했습니다.`)}catch(e){say(e&&e.code==="declined"?"저장을 취소했습니다.":"파일을 저장하지 못했습니다.")}return}
+  try{const b=data instanceof Blob?data:new Blob([data],{type:mime});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);say(`${name} 파일을 저장했습니다.`)}
+  catch(e){say("파일을 저장하지 못했습니다.")}
+}
+function metaRows(){const m=state.meta;return[["평가 틀",`${rubric.meta.name} v${rubric.meta.version}`],["평가 대상",m.target||""],["대상 품목",m.item||""],["자료 기준일",m.asof||""],["목표 시점",m.targetDate||""],["평가자",m.evaluator||""],["저장 일시",new Date().toLocaleString("ko-KR")]]}
+function saveXlsx(){
+  if(!window.XLSX){say("엑셀 저장 모듈(xlsx.full.min.js)을 찾지 못했습니다. index.html과 같은 폴더에 있는지 확인해 주세요.");return}
+  const R=report(),wb=XLSX.utils.book_new();
+  const sum=[["평가 정보",""],...metaRows(),[],["범주별 점수",""]];
+  for(const ax of rubric.axes)sum.push([ax.name,R.rows.filter(r=>r.axis===ax.name).map(r=>`${r.id} ${r.final??"확인 불가"}${r.final?"점":""}`).join(", ")]);
+  sum.push([],["과제 후보","중요도 높음 · 확정 점수 2점 이하 · 통제 가능(부분 포함)"]);
+  const tasks=R.rows.filter(r=>r.task);if(!tasks.length)sum.push(["","해당 없음"]);
+  for(const r of tasks)sum.push([`${r.id} ${r.name}`,`${r.final}점`]);
+  const s1=XLSX.utils.aoa_to_sheet(sum);s1["!cols"]=[{wch:18},{wch:70}];XLSX.utils.book_append_sheet(wb,s1,"요약");
+  const t2=[["범주","지표","지표명","질문","중요도","통제 가능","기준 유형","엔진 점수","확정 점수","목표 점수","단계 설명","판정 근거","수정 사유","과제 후보"]]
+    .concat(R.rows.map(r=>[r.axis,r.id,r.name,r.question,r.importance,r.control,r.anchor,r.engine??"확인 불가",r.final??"확인 불가",r.target??"",r.level,r.explain,r.reason,r.task?"예":""]));
+  const s2=XLSX.utils.aoa_to_sheet(t2);s2["!cols"]=[10,6,18,40,8,10,10,9,9,9,30,40,24,8].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,s2,"지표별 점수");
+  const t3=[["항목 ID","자료 항목","값","단위","출처","기준일","근거 문장"]].concat(R.inputs.map(i=>[i.id,i.label,i.value,i.unit,i.source,i.date,i.quote]));
+  const s3=XLSX.utils.aoa_to_sheet(t3);s3["!cols"]=[24,26,40,10,36,12,60].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,s3,"입력값과 근거");
+  const t4=[["기업 여건 (점수 미반영)","내용","출처","기준일"]].concat(R.ctx.map(c=>[c.label,c.value,c.source,c.date]),[[]],[["외부 여건","설명"]],R.ext.map(x=>[x.name,x.description]));
+  const s4=XLSX.utils.aoa_to_sheet(t4);s4["!cols"]=[26,70,30,12].map(w=>({wch:w}));XLSX.utils.book_append_sheet(wb,s4,"기업·외부 여건");
+  const out=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  downloadFile(fileBase()+".xlsx",new Blob([out],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+}
+function saveTxt(){
+  const R=report(),L=[];const hr="-".repeat(60);
+  L.push(`[${rubric.meta.name}] 평가 결과`,hr);for(const[k,v]of metaRows())L.push(`${k}: ${v}`);
+  L.push("",hr,"범주별 점수",hr);
+  for(const ax of rubric.axes)L.push(`${ax.name}: `+R.rows.filter(r=>r.axis===ax.name).map(r=>`${r.id} ${r.final??"확인 불가"}${r.final?"점":""}`).join(", "));
+  L.push("",hr,"과제 후보 (중요도 높음 · 확정 점수 2점 이하 · 통제 가능)",hr);
+  const tasks=R.rows.filter(r=>r.task);if(!tasks.length)L.push("해당 없음");for(const r of tasks)L.push(`${r.id} ${r.name}: ${r.final}점`);
+  L.push("",hr,"지표별 점수와 근거",hr);
+  for(const r of R.rows){L.push(`${r.id} ${r.name} [${r.axis}]`,`  엔진 ${r.engine??"확인 불가"} / 확정 ${r.final??"확인 불가"} / 목표 ${r.target??"-"}  (중요도 ${r.importance}, 통제 ${r.control}, ${r.anchor})`,`  단계: ${r.level||"-"}`,`  판정 근거: ${r.explain}`);if(r.reason)L.push(`  수정 사유: ${r.reason}`);L.push("")}
+  L.push(hr,"입력값과 근거",hr);
+  for(const i of R.inputs){L.push(`${i.label}: ${i.value===""?"값 없음":i.value}${i.unit&&i.value!==""?" "+i.unit:""}`);if(i.source)L.push(`  출처: ${i.source}${i.date?" ("+i.date+")":""}`);if(i.quote)L.push(`  근거: ${i.quote}`)}
+  L.push("",hr,"기업 여건 (점수 미반영)",hr);for(const c of R.ctx)L.push(`${c.label}: ${c.value||"-"}${c.source?"  [출처: "+c.source+"]":""}`);
+  L.push("",hr,"외부 여건",hr);for(const x of R.ext)L.push(`${x.name}: ${x.description}`);
+  downloadFile(fileBase()+".txt","\ufeff"+L.join("\r\n"),"text/plain;charset=utf-8");
+}
+function saveJson(){downloadFile(fileBase()+".json",JSON.stringify(snapshot(),null,2),"application/json")}
 function loadSnapshot(d,id){
   if(d.rubric)rubric=d.rubric;
-  state=Object.assign(blankState(),{id:id||null,meta:d.meta||{},values:d.values||{},overrides:d.overrides||{},targets:d.targets||{}});
+  state=Object.assign(blankState(),{id:id||null,started:d.started!==false,meta:d.meta||{},values:d.values||{},overrides:d.overrides||{},targets:d.targets||{}});
   store();renderAll();
 }
 async function openList(){
@@ -353,18 +437,13 @@ async function openList(){
     catch(e){list.append(el("p",{class:"hint",text:"목록을 읽지 못했습니다. 잠시 후 다시 시도해 주세요."}))}}
   $("#dlgOpen").showModal();
 }
-async function exportJson(){
-  const data=JSON.stringify(snapshot(),null,2);
-  const name=`${(state.meta.target||"평가").replace(/[\\/:*?"<>|]/g,"")}_경쟁력진단_${new Date().toISOString().slice(0,10)}.json`;
-  if(!downloads){try{const b=new Blob([data],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);say("JSON 파일을 저장했습니다.")}catch(e){say("파일을 저장하지 못했습니다.")}return}
-  try{await downloads.save({filename:name,data});say("JSON 파일을 저장했습니다.")}
-  catch(e){say(e&&e.code==="declined"?"저장을 취소했습니다.":"파일을 저장하지 못했습니다.")}
-}
 function importFile(file){
   const fr=new FileReader();
   fr.onload=()=>{try{const d=JSON.parse(fr.result);
-      if(d.kind==="evaluation"){loadSnapshot(d,null);say("평가 파일을 불러왔습니다. 저장하면 새 평가로 기록됩니다.")}
-      else if(d.meta&&d.indicators&&d.inputs){rubric=d;state=blankState();store();renderAll();say(`평가 틀 '${d.meta.name}'을 불러왔습니다.`)}
+      if(d.kind==="evaluation"){loadSnapshot(d,null);say("저장했던 평가를 불러왔습니다.")}
+      else if(d.meta&&d.indicators&&d.inputs){const ev=d.evaluation||null;const rb=Object.assign({},d);delete rb.evaluation;rubric=rb;state=blankState();
+        if(ev){state.meta=Object.assign(state.meta,ev.meta||{});state.values=ev.values||{};state.targets=ev.targets||{};state.overrides=ev.overrides||{}}
+        store();renderAll();say(ev?`'${d.meta.name}'과 평가 자료를 불러왔습니다. 평가 정보와 자료를 확인한 뒤 '평가 시작'을 누르세요.`:`평가 틀 '${d.meta.name}'을 불러왔습니다. 평가 정보와 자료를 입력한 뒤 '평가 시작'을 누르세요.`)}
       else say("평가 틀이나 평가 파일 형식이 아닙니다.")}
     catch(e){say("JSON을 읽지 못했습니다. 파일 내용을 확인해 주세요.")}};
   fr.readAsText(file);
@@ -373,12 +452,18 @@ function importFile(file){
 $("#btnSave").onclick=save;
 $("#btnOpen").onclick=openList;
 $("#dlgClose").onclick=()=>$("#dlgOpen").close();
-$("#btnNew").onclick=()=>{state=blankState();store();renderAll();say("새 평가를 시작했습니다.")};
-$("#btnExport").onclick=exportJson;
+$("#btnNew").onclick=()=>{state=blankState();store();renderAll();say("새 평가를 시작했습니다. JSON 파일을 불러오거나 자료를 입력하세요.")};
+$("#btnStart").onclick=startEval;
+$("#svXlsx").onclick=()=>{saveXlsx();$("#dlgSave").close()};
+$("#svTxt").onclick=()=>{saveTxt();$("#dlgSave").close()};
+$("#svJson").onclick=()=>{saveJson();$("#dlgSave").close()};
+$("#svClose").onclick=()=>$("#dlgSave").close();
 $("#btnImport").onclick=()=>$("#fileImport").click();
 $("#fileImport").onchange=e=>{const f=e.target.files[0];if(f)importFile(f);e.target.value=""};
 
 restore();renderAll();
+if(!(window.claude&&window.claude.use))$("#btnOpen").hidden=true;
+if(!state.meta.target)say("JSON 불러오기로 평가 틀이나 평가 자료 파일을 여세요.");
 
 if(window.claude&&window.claude.use){
   window.claude.use("db").then(async d=>{db=d;if(!db)return;
@@ -389,7 +474,7 @@ if(window.claude&&window.claude.use){
         const stale=!state.meta.target||!state.id||(d.rubric&&d.rubric.meta&&rubric.meta&&(d.rubric.meta.id!==rubric.meta.id||d.rubric.meta.version!==rubric.meta.version));
         if(stale){loadSnapshot(d,doc.id);say(`최근 저장된 평가 '${(d.meta||{}).target||""}'를 불러왔습니다.`)}}}catch(e){}
   });
-  window.claude.use("downloads").then(d=>{downloads=d;if(!d)$("#btnExport").hidden=true});
+  window.claude.use("downloads").then(d=>{downloads=d});
 }
 })();
 </script>
